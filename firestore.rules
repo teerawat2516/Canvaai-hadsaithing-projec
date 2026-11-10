@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    // Connection test document
+    match /test/{testId} {
+      allow get, write: if isValidId(testId);
+      allow list: if true;
+    }
+
+    // Residents Collection
+    match /residents/{residentId} {
+      allow get, write: if isValidId(residentId);
+      allow list: if true;
+    }
+
+    // Garbage Payments Collection
+    match /garbagePayments/{paymentId} {
+      allow get, write: if isValidId(paymentId);
+      allow list: if true;
+    }
+
+    // Village Fund Transactions Collection
+    match /fundTransactions/{transactionId} {
+      allow get, write: if isValidId(transactionId);
+      allow list: if true;
+    }
+
+    // Public Repair Tickets & Grievances
+    match /repairTickets/{ticketId} {
+      allow get, write: if isValidId(ticketId);
+      allow list: if true;
+    }
+
+    // Equipment & Facility Bookings
+    match /bookings/{bookingId} {
+      allow get, write: if isValidId(bookingId);
+      allow list: if true;
+    }
+
+    // Community Announcements & Broadcasts
+    match /announcements/{announcementId} {
+      allow get, write: if isValidId(announcementId);
+      allow list: if true;
+    }
+  }
+}

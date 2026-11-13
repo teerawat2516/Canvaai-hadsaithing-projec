@@ -5,8 +5,72 @@ import {
   RepairTicket,
   FacilityBooking,
   VillageAnnouncement,
-  CommitteeMember
+  CommitteeMember,
+  VillageLeader
 } from '../types/village';
+
+export const INITIAL_LEADERS: VillageLeader[] = [
+  {
+    id: 'leader-1',
+    name: 'นายอำนาจ พันนาขา',
+    role: 'headman',
+    positionTitle: 'ผู้ใหญ่บ้าน หมู่ที่ 7',
+    phone: '081-987-6543',
+    houseNo: '1/1',
+    soi: 'ซอย 1 หาดทอง',
+    responsibility: 'บริหารงานปกครองหมู่บ้านทั่วไป, ประธานคณะกรรมการหมู่บ้าน (กม.), รักษาความสงบเรียบร้อย, ประสานงานอำเภอโพนพิสัย และ อบต.สร้างนางขาว',
+    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=faces',
+    lineId: 'amnat_m7'
+  },
+  {
+    id: 'leader-2',
+    name: 'นายประสิทธิ์ ใจดี',
+    role: 'assistant',
+    positionTitle: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายรักษาความสงบ',
+    phone: '089-234-5678',
+    houseNo: '24',
+    soi: 'ซอย 3 ร่มไม้',
+    responsibility: 'ดูแลความปลอดภัยในชุมชน, ไฟฟ้าส่องสว่าง, การจราจร และตรวจตราความสงบเรียบร้อยยามค่ำคืน',
+    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop&crop=faces',
+    lineId: 'prasit_m7'
+  },
+  {
+    id: 'leader-3',
+    name: 'นางสมศรี มีสุข',
+    role: 'assistant',
+    positionTitle: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายปกครองและการคลัง',
+    phone: '086-345-6789',
+    houseNo: '48',
+    soi: 'ซอย 2 ทรายแก้ว',
+    responsibility: 'งานสารบรรณ เอกสารรับรองหมู่บ้าน, บัญชีการเงินและกองทุนหมู่บ้าน, งานทะเบียนราษฎร์',
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=300&fit=crop&crop=faces',
+    lineId: 'somsri_m7'
+  },
+  {
+    id: 'leader-4',
+    name: 'นายชาญชัย บุญรักษา',
+    role: 'assistant',
+    positionTitle: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายพัฒนาโครงสร้างพื้นฐาน',
+    phone: '087-654-3210',
+    houseNo: '55',
+    soi: 'ซอย 4 ทรายเงิน',
+    responsibility: 'ตรวจดูแลถนนหนทาง, ระบบระบายน้ำ, งานซ่อมบำรุงสาธารณูปโภค และประสานงานช่าง อบต.สร้างนางขาว',
+    imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=faces',
+    lineId: 'chanchai_m7'
+  },
+  {
+    id: 'leader-5',
+    name: 'นางกาญจนา นพรัตน์',
+    role: 'assistant',
+    positionTitle: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายสาธารณสุขและสิ่งแวดล้อม',
+    phone: '084-567-8901',
+    houseNo: '68',
+    soi: 'ซอย 5 ร่มโพธิ์',
+    responsibility: 'การดูแลสุขภาพอนามัยผู้สูงอายุ ผู้ป่วยติดเตียง, ประสานงานกลุ่ม อสม., การสุขาภิบาลและสิ่งแวดล้อมชุมชน',
+    imageUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=300&fit=crop&crop=faces',
+    lineId: 'kanjana_m7'
+  }
+];
 
 export const INITIAL_COMMITTEE: CommitteeMember[] = [
   {

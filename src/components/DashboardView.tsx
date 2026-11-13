@@ -107,7 +107,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </h1>
             <p className="text-sm md:text-base text-emerald-100 max-w-2xl leading-relaxed">
               ยินดีต้อนรับสู่ระบบข้อมูลกลางเพื่อการพัฒนาชุมชน ตรวจสอบทะเบียนราษฎร์ บัญชีการเงินชุมชน
-              แจ้งซ่อมและร้องเรียน ยืมของส่วนกลาง และปรึกษาแผนพัฒนาหมู่บ้านด้วย Gemini 4 Argon
+              แจ้งซ่อมและร้องเรียน ยืมของส่วนกลาง และปรึกษาแผนพัฒนาหมู่บ้านด้วยผู้ช่วย Gemini AI
             </p>
           </div>
 
@@ -123,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Sparkles className="w-4 h-4 text-violet-600 group-hover:rotate-12 transition-transform" />
               <span>AI วิเคราะห์ภาพรวมด่วน</span>
               <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-mono">
-                Argon
+                Gemini
               </span>
             </button>
             <button

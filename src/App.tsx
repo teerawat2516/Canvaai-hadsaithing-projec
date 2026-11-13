@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Header } from './components/Header';
 import { Sidebar, TabKey } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
+import { LeadersView } from './components/LeadersView';
 import { ResidentsView } from './components/ResidentsView';
 import { FinanceView } from './components/FinanceView';
 import { RepairView } from './components/RepairView';
@@ -21,6 +22,7 @@ import {
   subscribeRepairTickets,
   subscribeBookings,
   subscribeAnnouncements,
+  subscribeLeaders,
   syncResident,
   removeResident,
   syncGarbagePayment,
@@ -30,6 +32,7 @@ import {
   syncRepairTicket,
   syncBooking,
   syncAnnouncement,
+  syncLeader,
 } from './services/firestoreSync';
 import {
   UserRole,
@@ -38,7 +41,8 @@ import {
   FundTransaction,
   RepairTicket,
   FacilityBooking,
-  VillageAnnouncement
+  VillageAnnouncement,
+  VillageLeader,
 } from './types/village';
 import {
   INITIAL_RESIDENTS,
@@ -47,6 +51,7 @@ import {
   INITIAL_REPAIR_TICKETS,
   INITIAL_BOOKINGS,
   INITIAL_ANNOUNCEMENTS,
+  INITIAL_LEADERS,
   INITIAL_COMMITTEE,
   VILLAGE_META
 } from './data/initialData';
@@ -100,6 +105,11 @@ export default function App() {
   const [announcements, setAnnouncements] = useState<VillageAnnouncement[]>(() => {
     const saved = localStorage.getItem('village_announcements');
     return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
+  });
+
+  const [leaders, setLeaders] = useState<VillageLeader[]>(() => {
+    const saved = localStorage.getItem('village_leaders_v1');
+    return saved ? JSON.parse(saved) : INITIAL_LEADERS;
   });
 
   // AI Assistant Modal
@@ -211,6 +221,18 @@ export default function App() {
         () => setFirebaseStatus('disconnected')
       );
       unsubs.push(unSubAnn);
+
+      // Listen to leaders
+      const unSubLead = subscribeLeaders(
+        (items) => {
+          if (items && items.length > 0) {
+            setLeaders(items);
+            localStorage.setItem('village_leaders_v1', JSON.stringify(items));
+          }
+        },
+        () => setFirebaseStatus('disconnected')
+      );
+      unsubs.push(unSubLead);
     };
 
     initFirebase();
@@ -248,6 +270,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('village_announcements', JSON.stringify(announcements));
   }, [announcements]);
+
+  useEffect(() => {
+    localStorage.setItem('village_leaders_v1', JSON.stringify(leaders));
+  }, [leaders]);
 
   const handleToggleRole = () => {
     setCurrentRole((prev) => {
@@ -433,12 +459,30 @@ export default function App() {
     }
   };
 
+  // Leaders Handlers (Sync to Firebase)
+  const handleSaveLeader = async (leader: VillageLeader) => {
+    setLeaders((prev) => {
+      const exists = prev.some((l) => l.id === leader.id);
+      if (exists) {
+        return prev.map((l) => (l.id === leader.id ? leader : l));
+      }
+      return [...prev, leader];
+    });
+    try {
+      await syncLeader(leader);
+      showToast(`อัปเดตข้อมูลผู้นำหมู่บ้าน (${leader.name}) ลง Firebase สำเร็จ`, 'success');
+    } catch {
+      showToast(`บันทึกข้อมูล ${leader.name} เรียบร้อยแล้ว (ออฟไลน์)`, 'info');
+    }
+  };
+
   // Pending counts
   const pendingRepairsCount = repairTickets.filter((t) => t.status !== 'resolved').length;
   const pendingBookingsCount = bookings.filter((b) => b.status === 'pending').length;
 
   const tabTitles: Record<TabKey, string> = {
     dashboard: 'Dashboard ภาพรวมหมู่บ้าน',
+    leaders: 'ทำเนียบผู้นำหมู่บ้าน (ผู้ใหญ่บ้าน & ผู้ช่วย 4 คน)',
     residents: 'ทะเบียนราษฎร์ (หมู่ 7)',
     finance: 'บัญชีการเงินชุมชน',
     repair: 'แจ้งซ่อม & เรื่องร้องเรียน',
@@ -468,6 +512,7 @@ export default function App() {
         status: t.status,
       })),
     recentBookings: bookings.filter((b) => b.status === 'approved' || b.status === 'in_use'),
+    leaders: leaders.map((l) => ({ name: l.name, position: l.positionTitle, phone: l.phone })),
     committee: INITIAL_COMMITTEE,
     firebaseProject: 'Canvaai-hadsaithing projec',
     firebaseConnected: firebaseStatus === 'connected',
@@ -545,6 +590,14 @@ export default function App() {
               onNewRepairClick={() => setActiveTab('repair')}
               onNewPaymentClick={() => setActiveTab('finance')}
               onNewBookingClick={() => setActiveTab('booking')}
+            />
+          )}
+
+          {activeTab === 'leaders' && (
+            <LeadersView
+              leaders={leaders}
+              currentRole={currentRole}
+              onSaveLeader={handleSaveLeader}
             />
           )}
 

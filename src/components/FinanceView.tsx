@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { FundTransaction, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
+import { FinanceMonthlyChart } from './FinanceMonthlyChart';
 
 interface FinanceViewProps {
   transactions: FundTransaction[];
@@ -253,6 +254,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Monthly Income vs Expense Chart (Recharts) */}
+      <FinanceMonthlyChart transactions={transactions} />
 
       {/* Filter and Search Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row gap-3 items-center justify-between">

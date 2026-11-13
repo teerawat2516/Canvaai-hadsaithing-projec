@@ -10,6 +10,7 @@ import {
   Sparkles,
   Home,
   Shield,
+  Award,
   User,
   X,
   MapPin,
@@ -21,6 +22,7 @@ import { FirebaseStatusIndicator, FirebaseConnectionStatus } from './FirebaseSta
 
 export type TabKey =
   | 'dashboard'
+  | 'leaders'
   | 'residents'
   | 'finance'
   | 'repair'
@@ -61,6 +63,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: PieChart,
       activeColor: 'from-sky-500 to-blue-600',
       iconBg: 'bg-sky-100 text-sky-600',
+    },
+    {
+      id: 'leaders' as TabKey,
+      label: 'ผู้นำหมู่บ้าน (5 คน)',
+      icon: Award,
+      activeColor: 'from-blue-600 to-indigo-700',
+      iconBg: 'bg-blue-100 text-blue-700',
     },
     {
       id: 'residents' as TabKey,
@@ -217,8 +226,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="flex items-center gap-1.5">
                   {item.isAi && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-mono bg-amber-400 text-amber-950 font-bold uppercase animate-pulse">
-                      Argon
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-mono bg-emerald-400 text-emerald-950 font-bold uppercase animate-pulse">
+                      Gemini
                     </span>
                   )}
                   {item.badge !== undefined && (

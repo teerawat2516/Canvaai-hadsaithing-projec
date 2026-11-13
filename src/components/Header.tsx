@@ -75,17 +75,17 @@ export const Header: React.FC<HeaderProps> = ({
           compact={true}
           onRetry={onRetryFirebase}
         />
-        {/* Gemini 4 Argon High Thinking Assistant Button */}
+        {/* Gemini AI Assistant Button */}
         <button
           onClick={onOpenAiAssistant}
           className="relative group px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition flex items-center gap-2"
-          title="เปิดผู้ช่วย AI หมู่บ้านอัจฉริยะ (Gemini 4 Argon High Thinking)"
+          title="เปิดผู้ช่วย AI หมู่บ้านอัจฉริยะ (Gemini AI)"
         >
           <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
           <span className="hidden sm:inline">AI ที่ปรึกษาผู้ใหญ่บ้าน</span>
           <span className="sm:hidden">AI ผู้ช่วย</span>
-          <span className="px-1.5 py-0.2 text-[10px] bg-amber-400/30 text-amber-200 border border-amber-300/40 rounded-full font-mono">
-            High Thinking
+          <span className="px-1.5 py-0.2 text-[10px] bg-emerald-400/30 text-emerald-200 border border-emerald-300/40 rounded-full font-mono">
+            Gemini
           </span>
         </button>
 

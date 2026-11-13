@@ -114,3 +114,17 @@ export interface CommitteeMember {
   soi: string;
   responsibility: string;
 }
+
+export interface VillageLeader {
+  id: string;
+  name: string;
+  role: 'headman' | 'assistant';
+  positionTitle: string;
+  phone: string;
+  soi: string;
+  houseNo?: string;
+  responsibility: string;
+  imageUrl?: string;
+  lineId?: string;
+}
+

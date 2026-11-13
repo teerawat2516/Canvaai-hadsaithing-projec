@@ -44,6 +44,40 @@ const VILLAGE_SYSTEM_INSTRUCTION = `คุณคือ "ผู้ช่วยป
    - การเขียนหนังสือราชการหมู่บ้าน, ประกาศหอกระจายข่าว, และการไกล่เกลี่ยข้อพิพาทชุมชน
 3. เมื่อวิเคราะห์ปัญหาหรือวางแผน ให้ใช้ตรรกะเชิงลึก (Deep Reasoning) แสดงขั้นตอนการคิด วินิจฉัยรากของปัญหา ลำดับความสำคัญ และแนวทางปฏิบัติที่ชุมชนทำได้จริง พร้อมกรอบเวลาและหน่วยงานที่ต้องประสานงาน`;
 
+// Resilient generation helper with high-speed models (gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.8-flash)
+async function generateVillageAI(
+  ai: GoogleGenAI,
+  prompt: string,
+  systemInstruction?: string,
+  extraConfig?: any
+): Promise<string> {
+  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+  let lastError: any = null;
+
+  for (const model of models) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+          ...extraConfig,
+        },
+      });
+
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      console.warn(`Model ${model} invocation issue, trying next fallback:`, err?.message || err);
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+  }
+
+  throw lastError || new Error('All Gemini models encountered an error');
+}
+
 // API 1: Thinking Assistant Chat
 app.post('/api/gemini/chat', async (req, res) => {
   try {
@@ -57,19 +91,8 @@ app.post('/api/gemini/chat', async (req, res) => {
       ? `บริบทข้อมูลหมู่บ้านหาดทรายทอง หมู่ 7:\n${JSON.stringify(context, null, 2)}\n\nคำถามหรือภารกิจ:\n${prompt}`
       : prompt;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-argon',
-      contents: contextualPrompt,
-      config: {
-        systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
-        },
-      },
-    });
-
-    const reply = response.text || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้';
-    res.json({ reply, status: 'success' });
+    const reply = await generateVillageAI(ai, contextualPrompt);
+    res.json({ reply: reply || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้', status: 'success' });
   } catch (error: any) {
     console.error('Error in /api/gemini/chat:', error);
     res.status(500).json({
@@ -98,19 +121,14 @@ ${keyDetails || 'ไม่มีรายละเอียดเพิ่มเ
 - หากเป็น "หนังสือนัดประชุมหมู่บ้าน/รายงานการประชุม" ให้มีระเบียบวาระที่ 1-5 ตามมาตรฐานการประชุมราชการ
 - หากเป็น "บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาท" ให้ระบุคู่กรณี ข้อตกลง และพยานผู้ใหญ่บ้าน`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-argon',
-      contents: prompt,
-      config: {
-        systemInstruction: `${VILLAGE_SYSTEM_INSTRUCTION}\nสร้างเอกสารอย่างเป็นทางการ สละสลวย ถูกต้องตามแบบแผนงานสารบรรณท้องถิ่น`,
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
-        },
-      },
-    });
+    const content = await generateVillageAI(
+      ai,
+      prompt,
+      `${VILLAGE_SYSTEM_INSTRUCTION}\nสร้างเอกสารอย่างเป็นทางการ สละสลวย ถูกต้องตามแบบแผนงานสารบรรณท้องถิ่น`
+    );
 
     res.json({
-      content: response.text || '',
+      content: content || '',
       status: 'success',
     });
   } catch (error: any) {
@@ -143,19 +161,10 @@ app.post('/api/gemini/analyze-community', async (req, res) => {
 3. [กลยุทธ์การเงินและการจัดเก็บรายได้ชุมชนให้ยั่งยืน]
 4. [ข้อเสนอของบประมาณจาก อบต.สร้างนางขาว หรืออำเภอโพนพิสัย]`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-argon',
-      contents: prompt,
-      config: {
-        systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
-        },
-      },
-    });
+    const analysis = await generateVillageAI(ai, prompt);
 
     res.json({
-      analysis: response.text || '',
+      analysis: analysis || '',
       status: 'success',
     });
   } catch (error: any) {

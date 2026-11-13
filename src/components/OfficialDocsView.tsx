@@ -282,7 +282,7 @@ ${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastN
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-xs md:text-sm shadow-md shadow-indigo-600/25 transition flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>{isDrafting ? 'Gemini 4 Argon กำลังคิดและร่างเอกสาร...' : 'ให้ Gemini 4 Argon ร่างอย่างเป็นทางการ (High Thinking)'}</span>
+              <span>{isDrafting ? 'AI กำลังคิดและร่างเอกสาร...' : 'ให้ AI ช่วยร่างอย่างเป็นทางการ (Gemini AI)'}</span>
             </button>
           </div>
         </div>
@@ -315,7 +315,7 @@ ${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastN
                 <FileText className="w-12 h-12 text-slate-300 stroke-1" />
                 <h4 className="font-bold text-slate-600 text-base">ยังไม่มีการสร้างเอกสาร</h4>
                 <p className="text-xs max-w-sm">
-                  เลือกประเภทเอกสารทางด้านซ้าย แล้วกดปุ่ม "สร้างร่างจากแบบฟอร์ม" หรือกดให้ "Gemini 4 Argon ร่างอย่างเป็นทางการ" เพื่อดูตัวอย่างก่อนพิมพ์
+                  เลือกประเภทเอกสารทางด้านซ้าย แล้วกดปุ่ม "สร้างร่างจากแบบฟอร์ม" หรือกดให้ "AI ช่วยร่างอย่างเป็นทางการ" เพื่อดูตัวอย่างก่อนพิมพ์
                 </p>
               </div>
             )}

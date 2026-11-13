@@ -15,7 +15,8 @@ import {
   FundTransaction,
   RepairTicket,
   FacilityBooking,
-  VillageAnnouncement
+  VillageAnnouncement,
+  VillageLeader
 } from '../types/village';
 import {
   INITIAL_RESIDENTS,
@@ -23,7 +24,8 @@ import {
   INITIAL_FUND_TRANSACTIONS,
   INITIAL_REPAIR_TICKETS,
   INITIAL_BOOKINGS,
-  INITIAL_ANNOUNCEMENTS
+  INITIAL_ANNOUNCEMENTS,
+  INITIAL_LEADERS
 } from '../data/initialData';
 
 // Helper to seed initial data if Firestore collection is empty
@@ -61,6 +63,7 @@ export async function seedFirestoreIfEmpty() {
 
       await batch.commit();
       console.log('Seeded Firebase Firestore successfully!');
+    } else {
       // If already seeded, ensure headman r1 record is up to date with นายอำนาจ พันนาขา
       const r1Ref = doc(db, 'residents', 'r1');
       const r1Snap = await getDoc(r1Ref);
@@ -73,6 +76,17 @@ export async function seedFirestoreIfEmpty() {
       if (oldTx1.exists()) {
         await clearAllFundTransactions();
       }
+    }
+
+    // Always check and seed leaders if empty
+    const leadersSnap = await getDocs(collection(db, 'leaders'));
+    if (leadersSnap.empty) {
+      const leaderBatch = writeBatch(db);
+      for (const l of INITIAL_LEADERS) {
+        leaderBatch.set(doc(db, 'leaders', l.id), l);
+      }
+      await leaderBatch.commit();
+      console.log('Seeded initial village leaders successfully!');
     }
   } catch (error) {
     console.warn('Initial seeding note (will use existing or offline):', error);
@@ -283,6 +297,54 @@ export async function syncAnnouncement(ann: VillageAnnouncement) {
   const path = `announcements/${ann.id}`;
   try {
     await setDoc(doc(db, 'announcements', ann.id), ann, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+// Leaders Subscription & Sync
+export function subscribeLeaders(
+  onUpdate: (leaders: VillageLeader[]) => void,
+  onError?: (err: any) => void
+) {
+  const colPath = 'leaders';
+  return onSnapshot(
+    collection(db, colPath),
+    (snapshot) => {
+      const items: VillageLeader[] = [];
+      snapshot.forEach((d) => items.push(d.data() as VillageLeader));
+      // Sort headman first, then assistants
+      items.sort((a, b) => {
+        if (a.role === 'headman' && b.role !== 'headman') return -1;
+        if (a.role !== 'headman' && b.role === 'headman') return 1;
+        return a.id.localeCompare(b.id);
+      });
+      onUpdate(items);
+    },
+    (err) => {
+      console.error('Error subscribing to leaders:', err);
+      onError?.(err);
+      handleFirestoreError(err, OperationType.LIST, colPath);
+    }
+  );
+}
+
+export async function syncLeader(leader: VillageLeader) {
+  const path = `leaders/${leader.id}`;
+  try {
+    const cleanData: Record<string, any> = {
+      id: leader.id,
+      name: leader.name,
+      role: leader.role,
+      positionTitle: leader.positionTitle,
+      phone: leader.phone,
+      soi: leader.soi || '',
+      houseNo: leader.houseNo || '',
+      responsibility: leader.responsibility || '',
+      imageUrl: leader.imageUrl || '',
+      lineId: leader.lineId || '',
+    };
+    await setDoc(doc(db, 'leaders', leader.id), cleanData, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }

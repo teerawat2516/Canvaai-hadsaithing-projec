@@ -300,7 +300,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
                 <div>
                   <div className="font-bold text-xs text-indigo-900 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-                    <span>ใช้ Gemini 4 Argon ร่างบทเสียงตามสาย</span>
+                    <span>ใช้ผู้ช่วย AI ร่างบทเสียงตามสาย (Gemini)</span>
                   </div>
                   <div className="text-[11px] text-indigo-700">
                     แปลงหัวข้อเป็นคำพูดที่เป็นกันเอง อบอุ่น เหมาะกับหอกระจายข่าว

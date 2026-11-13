@@ -44,11 +44,11 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     {
       id: 'welcome',
       sender: 'assistant',
-      text: `สวัสดีครับผู้ใหญ่บ้านและคณะกรรมการหมู่บ้านหาดทรายทอง หมู่ 7 ผมคือ **"ผู้ช่วย AI อัจฉริยะ ประจำหมู่บ้าน"** ขับเคลื่อนด้วย **Gemini 4 Argon (High Thinking Mode)**
+      text: `สวัสดีครับผู้ใหญ่บ้านและคณะกรรมการหมู่บ้านหาดทรายทอง หมู่ 7 ผมคือ **"ผู้ช่วย AI อัจฉริยะ ประจำหมู่บ้าน"** ขับเคลื่อนด้วย **Gemini AI (Gemini 3.8 Flash)**
 
 ผมพร้อมให้คำปรึกษาเชิงลึกด้าน:
 1. **การบริหารจัดการชุมชน**: พ.ร.บ. ลักษณะปกครองท้องที่, ระเบียบ มท. ว่าด้วย กม.
-2. **การเงินและสิ่งแวดล้อม**: บริหารกองทุนหมู่บ้าน, การจัดเก็บค่าขยะให้ได้ 100%, พลังงานสะอาด
+2. **การเงินชุมชน**: บริหารกองทุนหมู่บ้าน, สมุดบัญชีรายรับ-รายจ่าย, พลังงานสะอาดและสิ่งแวดล้อม
 3. **การพัฒนาโครงสร้างพื้นฐาน**: แผนถนน, ท่อระบายน้ำ, ไฟส่องสว่างโซลาร์เซลล์
 4. **สวัสดิการชุมชน**: การดูแลผู้สูงอายุและผู้ป่วยติดเตียงร่วมกับ อสม.
 5. **การร่างหนังสือราชการและประกาศหอกระจายข่าว**
@@ -71,8 +71,8 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
       prompt: 'ช่วยวิเคราะห์สถิติประชากรและเรื่องร้องเรียนของหมู่ 7 เพื่อร่างโครงร่าง "แผนพัฒนาหมู่บ้าน 5 ปี" โดยเน้นการแก้ปัญหาน้ำท่วมขังและไฟส่องทาง',
     },
     {
-      title: 'แก้ปัญหาจัดเก็บค่าขยะ',
-      prompt: 'แนะนำกลยุทธ์การจัดเก็บค่าขยะมูลฝอยให้ได้ 100% ครบทุกครัวเรือน พร้อมมาตรการจูงใจและการคัดแยกขยะเปียก/รีไซเคิล',
+      title: 'บริหารกองทุนและการเงินชุมชน',
+      prompt: 'แนะนำกลยุทธ์การบริหารจัดการบัญชีการเงินและกองทุนหมู่บ้านให้โปร่งใส มีสภาพคล่อง และสามารถสนับสนุนโครงการพัฒนาชุมชนได้อย่างต่อเนื่อง',
     },
     {
       title: 'โครงการดูแลผู้สูงอายุ',
@@ -161,11 +161,12 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                 <h3 className="font-extrabold text-base md:text-lg">
                   AI ที่ปรึกษาผู้ใหญ่บ้านและคณะกรรมการชุมชน
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-400 text-amber-950 font-bold uppercase tracking-wider">
-                  Gemini 4 Argon
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-400 text-emerald-950 font-bold uppercase tracking-wider">
+                  Gemini 3.8 Flash
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-900/60 text-indigo-200 border border-indigo-400/30">
-                  ThinkingLevel.HIGH
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-900/60 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  ออนไลน์พร้อมตอบ
                 </span>
               </div>
               <p className="text-xs text-indigo-100">
@@ -232,7 +233,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 text-[11px] text-slate-400">
                       <div className="flex items-center gap-1.5 font-semibold text-indigo-700">
                         <Brain className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Gemini 4 Argon High Reasoning Output</span>
+                        <span>คำตอบจาก AI ที่ปรึกษาผู้ใหญ่บ้าน</span>
                       </div>
                       <button
                         onClick={() => handleCopyText(msg.id, msg.text)}
@@ -271,7 +272,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
               <div className="p-4 rounded-3xl rounded-tl-xs bg-white border border-indigo-200/80 shadow-md text-xs md:text-sm text-indigo-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-indigo-700">
                   <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
-                  <span>Gemini 4 Argon กำลังวิเคราะห์และขบคิดเชิงลึก (High Thinking)...</span>
+                  <span>ผู้ช่วย AI กำลังวิเคราะห์ข้อมูลและประมวลผลคำตอบ...</span>
                 </div>
                 <div className="space-y-1 text-slate-500 text-xs">
                   <p className="flex items-center gap-1.5 animate-pulse">
@@ -318,7 +319,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
             </button>
           </form>
           <div className="flex items-center justify-between text-[11px] text-slate-400 px-2 pt-2">
-            <span>Powered by Gemini 4 Argon • thinkingLevel: ThinkingLevel.HIGH</span>
+            <span>ขับเคลื่อนโดย Google Gemini 3.8 Flash • AI ประจำหมู่บ้านหาดทรายทอง</span>
             <span>ที่ทำการผู้ใหญ่บ้าน หมู่ที่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย</span>
           </div>
         </div>

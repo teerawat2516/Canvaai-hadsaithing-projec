@@ -46,5 +46,11 @@ service cloud.firestore {
       allow get, write: if isValidId(announcementId);
       allow list: if true;
     }
+
+    // Village Leaders Collection (ผู้ใหญ่บ้าน & ผู้ช่วย)
+    match /leaders/{leaderId} {
+      allow get, write: if isValidId(leaderId);
+      allow list: if true;
+    }
   }
 }

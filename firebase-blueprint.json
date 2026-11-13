@@ -124,6 +124,24 @@
       },
       "required": ["id", "title", "content", "category", "date"]
     },
+    "VillageLeader": {
+      "title": "VillageLeader",
+      "description": "Village headman and 4 assistant headmen directory with photo and contact phone",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "positionTitle": { "type": "string" },
+        "phone": { "type": "string" },
+        "soi": { "type": "string" },
+        "houseNo": { "type": "string" },
+        "responsibility": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "lineId": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "positionTitle", "phone"]
+    },
     "TestConnection": {
       "title": "TestConnection",
       "description": "Test doc to verify connection to Firestore",
@@ -158,6 +176,10 @@
     "/announcements/{announcementId}": {
       "schema": "VillageAnnouncement",
       "description": "Community news and loudspeaker broadcast announcements"
+    },
+    "/leaders/{leaderId}": {
+      "schema": "VillageLeader",
+      "description": "Village headman and 4 assistant headmen directory"
     },
     "/test/{testId}": {
       "schema": "TestConnection",

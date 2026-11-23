@@ -5,7 +5,6 @@ import {
   User,
   Printer,
   Calendar,
-  Sparkles,
   FileDown
 } from 'lucide-react';
 import { UserRole } from '../types/village';
@@ -16,7 +15,6 @@ interface HeaderProps {
   currentRole: UserRole;
   onToggleRole: () => void;
   onToggleSidebar: () => void;
-  onOpenAiAssistant: () => void;
   onOpenExportPrint: () => void;
   activeTabTitle: string;
   firebaseStatus: FirebaseConnectionStatus;
@@ -27,7 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentRole,
   onToggleRole,
   onToggleSidebar,
-  onOpenAiAssistant,
   onOpenExportPrint,
   activeTabTitle,
   firebaseStatus,
@@ -79,17 +76,6 @@ export const Header: React.FC<HeaderProps> = ({
             compact={true}
             onRetry={onRetryFirebase}
           />
-
-          {/* AI Assistant Quick Button */}
-          <button
-            onClick={onOpenAiAssistant}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm transition"
-            title="เปิด AI ผู้ช่วยหมู่บ้าน"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">AI ผู้ช่วย</span>
-            <span className="sm:hidden">AI</span>
-          </button>
 
           {/* Export PDF / CSV / Print Mode Button */}
           <button

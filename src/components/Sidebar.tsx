@@ -14,7 +14,6 @@ import {
   X,
   MapPin,
   Phone,
-  Sparkles,
   FileDown
 } from 'lucide-react';
 import { UserRole } from '../types/village';
@@ -33,7 +32,6 @@ export type TabKey =
 interface SidebarProps {
   activeTab: TabKey;
   onSelectTab: (tab: TabKey) => void;
-  onOpenAiAssistant: () => void;
   onOpenExportPrint: () => void;
   isOpen: boolean;
   onClose: () => void;
@@ -46,7 +44,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
-  onOpenAiAssistant,
   onOpenExportPrint,
   isOpen,
   onClose,
@@ -232,24 +229,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
 
           <div className="pt-2 space-y-2">
-            <button
-              onClick={() => {
-                onOpenAiAssistant();
-                onClose();
-              }}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-md shadow-emerald-600/20 transition-all text-left"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <span className="truncate">AI ผู้ช่วยหมู่บ้าน</span>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 text-white font-bold shrink-0">
-                ถาม-ตอบ
-              </span>
-            </button>
-
             <button
               onClick={() => {
                 onOpenExportPrint();

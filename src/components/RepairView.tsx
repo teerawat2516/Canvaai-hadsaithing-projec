@@ -12,8 +12,7 @@ import {
   Filter,
   Check,
   X,
-  FileQuestion,
-  Sparkles
+  FileQuestion
 } from 'lucide-react';
 import { notifyAlert } from '../services/notify';
 import {
@@ -30,7 +29,6 @@ interface RepairViewProps {
   currentRole: UserRole;
   onAddTicket: (ticket: RepairTicket) => void;
   onUpdateTicket: (ticket: RepairTicket) => void;
-  onOpenAiAdvisor?: (prompt: string) => void;
 }
 
 export const RepairView: React.FC<RepairViewProps> = ({
@@ -38,7 +36,6 @@ export const RepairView: React.FC<RepairViewProps> = ({
   currentRole,
   onAddTicket,
   onUpdateTicket,
-  onOpenAiAdvisor,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -195,24 +192,6 @@ export const RepairView: React.FC<RepairViewProps> = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {onOpenAiAdvisor && (
-            <button
-              onClick={() => {
-                const pendingSummary = tickets
-                  .filter((t) => t.status !== 'resolved')
-                  .slice(0, 6)
-                  .map((t) => `- [${t.priority}] ${t.title} (${t.location})`)
-                  .join('\n');
-                onOpenAiAdvisor(
-                  `ช่วยจัดลำดับความสำคัญและแนะนำแนวทางแก้ไขเรื่องแจ้งซ่อมที่ค้างอยู่ตอนนี้:\n${pendingSummary || 'ไม่มีเรื่องค้างอยู่'}`
-                );
-              }}
-              className="px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center gap-1.5"
-            >
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>ขอคำแนะนำ AI</span>
-            </button>
-          )}
           <button
             onClick={() => setIsNewModalOpen(true)}
             className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/25 transition flex items-center gap-1.5"

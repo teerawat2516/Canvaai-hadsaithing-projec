@@ -9,13 +9,10 @@ import {
   AlertCircle,
   Heart,
   Share2,
-  X,
-  Sparkles,
-  RefreshCw
+  X
 } from 'lucide-react';
 import { VillageAnnouncement, UserRole } from '../types/village';
 import { notifyAlert, notifyToast } from '../services/notify';
-import { draftOfficialDocument } from '../services/api';
 
 interface NewsViewProps {
   announcements: VillageAnnouncement[];
@@ -31,7 +28,6 @@ export const NewsView: React.FC<NewsViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [isDraftingAi, setIsDraftingAi] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -53,26 +49,6 @@ export const NewsView: React.FC<NewsViewProps> = ({
     setCopiedId(id);
     notifyToast('คัดลอกบทพูดเสียงตามสายแล้ว', 'success');
     setTimeout(() => setCopiedId(null), 2500);
-  };
-
-  const handleDraftBroadcastWithAi = async () => {
-    if (!form.title.trim() && !form.content.trim()) {
-      notifyAlert('กรุณากรอกข้อมูลเบื้องต้น', 'กรุณากรอกหัวข้อหรือเนื้อหาประกาศก่อนให้ AI ช่วยร่างบทพูด', 'warning');
-      return;
-    }
-    setIsDraftingAi(true);
-    const res = await draftOfficialDocument({
-      docType: 'ประกาศเสียงตามสาย/หอกระจายข่าว',
-      topic: form.title || 'ประกาศข่าวสารหมู่บ้าน',
-      keyDetails: form.content || form.title,
-    });
-    setIsDraftingAi(false);
-    if (res.status === 'error') {
-      notifyAlert('ไม่สามารถร่างบทพูดได้', res.error || 'กรุณาลองใหม่อีกครั้ง', 'error');
-      return;
-    }
-    setForm((prev) => ({ ...prev, broadcastScript: res.content }));
-    notifyToast('AI สร้างบทพูดเสียงตามสายเรียบร้อยแล้ว', 'success');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -290,22 +266,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
               </div>
 
               <div>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <label className="block font-medium text-slate-700">บทพูดเสียงตามสาย (Broadcast Script)</label>
-                  <button
-                    type="button"
-                    onClick={handleDraftBroadcastWithAi}
-                    disabled={isDraftingAi}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition disabled:opacity-60"
-                  >
-                    {isDraftingAi ? (
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3 h-3" />
-                    )}
-                    <span>{isDraftingAi ? 'กำลังร่าง...' : 'ให้ AI ช่วยร่างบทพูด'}</span>
-                  </button>
-                </div>
+                <label className="block font-medium text-slate-700 mb-1">บทพูดเสียงตามสาย (Broadcast Script)</label>
                 <textarea
                   rows={3}
                   placeholder="สวัสดีพ่อแม่พี่น้องชาวหมู่ 7..."

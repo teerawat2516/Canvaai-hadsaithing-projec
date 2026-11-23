@@ -12,8 +12,7 @@ import {
   CheckCircle2,
   Clock,
   Megaphone,
-  Compass,
-  Sparkles
+  Compass
 } from 'lucide-react';
 import {
   Resident,
@@ -34,7 +33,6 @@ interface DashboardViewProps {
   onNewRepairClick: () => void;
   onNewPaymentClick: () => void;
   onNewBookingClick: () => void;
-  onOpenAiAssistant: (prompt?: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -47,7 +45,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNewRepairClick,
   onNewPaymentClick,
   onNewBookingClick,
-  onOpenAiAssistant,
 }) => {
   // Calculations
   const totalResidents = residents.length;
@@ -110,13 +107,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-3 shrink-0">
-            <button
-              onClick={() => onOpenAiAssistant()}
-              className="px-5 py-3 rounded-2xl bg-white text-emerald-800 font-bold text-sm shadow-md hover:bg-emerald-50 transition flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>ปรึกษา AI ผู้ช่วย</span>
-            </button>
             <button
               onClick={onNewPaymentClick}
               className="px-5 py-3 rounded-2xl bg-white/15 hover:bg-white/25 backdrop-blur-md text-white font-semibold text-sm border border-white/30 transition flex items-center gap-2"
@@ -413,17 +403,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </p>
 
             <div className="space-y-2.5 pt-2">
-              <button
-                onClick={() => onOpenAiAssistant('ช่วยสรุปภาพรวมหมู่บ้านหาดทรายทอง หมู่ 7 และแนะนำเรื่องเร่งด่วนที่ควรดำเนินการ')}
-                className="w-full p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/70 text-emerald-900 text-xs font-bold flex items-center justify-between transition text-left"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-600" />
-                  ให้ AI สรุปสถานการณ์และแนะนำงานเร่งด่วน
-                </span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-
               <button
                 onClick={() => onNavigateTab('finance')}
                 className="w-full p-3 rounded-xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/60 text-amber-900 text-xs font-semibold flex items-center justify-between transition text-left"

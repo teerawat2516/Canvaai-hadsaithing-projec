@@ -4,14 +4,11 @@ import {
   Printer,
   Copy,
   Check,
-  Building,
-  Sparkles,
-  RefreshCw
+  Building
 } from 'lucide-react';
 import { Resident, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
-import { draftOfficialDocument } from '../services/api';
-import { notifyToast, notifyAlert } from '../services/notify';
+import { notifyToast } from '../services/notify';
 
 interface OfficialDocsViewProps {
   residents: Resident[];
@@ -27,7 +24,6 @@ export const OfficialDocsView: React.FC<OfficialDocsViewProps> = ({
   const [extraDetails, setExtraDetails] = useState<string>('');
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [isDraftingAi, setIsDraftingAi] = useState<boolean>(false);
 
   const selectedResident = residents.find((r) => r.id === selectedResidentId) || residents[0];
 
@@ -139,32 +135,6 @@ ${extraDetails || 'คู่กรณีทั้งสองฝ่ายได�
       (นายอำนาจ พันนาขา)`;
       setGeneratedContent(text);
     }
-  };
-
-  const handleDraftWithAi = async () => {
-    setIsDraftingAi(true);
-    const docTypeLabels: Record<string, string> = {
-      cert_residence: 'หนังสือรับรองถิ่นที่อยู่และความประพฤติ',
-      meeting_notice: 'หนังสือนัดประชุมหมู่บ้าน/รายงานการประชุม',
-      subdistrict_request: 'หนังสือขอความอนุเคราะห์ / งบประมาณ อบต.',
-      dispute_settlement: 'บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาท',
-    };
-    const res = await draftOfficialDocument({
-      docType: docTypeLabels[docType] || docType,
-      topic: purpose || 'เอกสารราชการหมู่บ้าน',
-      keyDetails: extraDetails,
-      applicantName: selectedResident
-        ? `${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastName}`
-        : undefined,
-      houseNo: selectedResident?.houseNo,
-    });
-    setIsDraftingAi(false);
-    if (res.status === 'error') {
-      notifyAlert('ไม่สามารถร่างเอกสารด้วย AI ได้', res.error || 'กรุณาลองใหม่อีกครั้ง', 'error');
-      return;
-    }
-    setGeneratedContent(res.content);
-    notifyToast('AI ร่างเอกสารเรียบร้อยแล้ว', 'success');
   };
 
   const handleCopy = () => {
@@ -282,19 +252,6 @@ ${extraDetails || 'คู่กรณีทั้งสองฝ่ายได�
             >
               <FileText className="w-4 h-4" />
               <span>สร้างร่างจากแบบฟอร์มมาตรฐาน</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDraftWithAi}
-              disabled={isDraftingAi}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 shadow-sm"
-            >
-              {isDraftingAi ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              <span>{isDraftingAi ? 'AI กำลังร่างเอกสาร...' : 'ให้ AI ช่วยเรียบเรียงเอกสาร'}</span>
             </button>
           </div>
         </div>

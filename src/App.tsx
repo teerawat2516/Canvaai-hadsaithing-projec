@@ -12,7 +12,6 @@ import { NewsView } from './components/NewsView';
 import { OfficialDocsView } from './components/OfficialDocsView';
 import { PrintableReceipt } from './components/PrintableReceipt';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { AiAssistantModal } from './components/AiAssistantModal';
 import { ExportPrintModal } from './components/ExportPrintModal';
 import { testFirebaseConnection } from './services/firebase';
 import type { FirebaseConnectionStatus } from './components/FirebaseStatusIndicator';
@@ -118,17 +117,8 @@ export default function App() {
   // Printable Receipt / Voucher
   const [activeReceipt, setActiveReceipt] = useState<FundTransaction | null>(null);
 
-  // AI Assistant Modal
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [aiInitialPrompt, setAiInitialPrompt] = useState('');
-
   // Export PDF / CSV / Print Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
-  const handleOpenAiAssistant = useCallback((prompt = '') => {
-    setAiInitialPrompt(prompt);
-    setIsAiModalOpen(true);
-  }, []);
 
   const showToast = useCallback((text: string, type: 'success' | 'error' | 'info' = 'info') => {
     notifyToast(text, type);
@@ -494,42 +484,12 @@ export default function App() {
     docs: 'ออกหนังสือ & รายงาน',
   };
 
-  // Compact village context for AI Assistant
-  const totalIncome = fundTransactions
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = fundTransactions
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const villageContext = {
-    village: {
-      villageName: VILLAGE_META.villageName,
-      headmanName: VILLAGE_META.headmanName,
-    },
-    totalResidents: residents.length,
-    maleCount: residents.filter((r) => r.gender === 'ชาย').length,
-    femaleCount: residents.filter((r) => r.gender === 'หญิง').length,
-    totalHouseholds: new Set(residents.map((r) => r.houseNo)).size,
-    elderlyCount: residents.filter((r) => r.isElderly || r.age >= 60).length,
-    vulnerableCount: residents.filter((r) => r.isVulnerable).length,
-    totalIncome,
-    totalExpense,
-    fundBalance: totalIncome - totalExpense,
-    openRepairs: repairTickets
-      .filter((t) => t.status !== 'resolved')
-      .map((t) => ({ title: t.title, location: t.location, priority: t.priority })),
-    recentBookings: bookings.slice(0, 5).map((b) => ({ itemName: b.itemName, status: b.status })),
-    leaders: leaders.map((l) => ({ name: l.name, position: l.positionTitle })),
-  };
-
   return (
     <div className="flex h-screen overflow-hidden text-slate-800 antialiased print-shell">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => setActiveTab(tab)}
-        onOpenAiAssistant={() => handleOpenAiAssistant()}
         onOpenExportPrint={() => setIsExportModalOpen(true)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -545,7 +505,6 @@ export default function App() {
           currentRole={currentRole}
           onToggleRole={handleToggleRole}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-          onOpenAiAssistant={() => handleOpenAiAssistant()}
           onOpenExportPrint={() => setIsExportModalOpen(true)}
           activeTabTitle={tabTitles[activeTab]}
           firebaseStatus={firebaseStatus}
@@ -583,7 +542,6 @@ export default function App() {
               onNewRepairClick={() => setActiveTab('repair')}
               onNewPaymentClick={() => setActiveTab('finance')}
               onNewBookingClick={() => setActiveTab('booking')}
-              onOpenAiAssistant={handleOpenAiAssistant}
             />
           )}
 
@@ -621,7 +579,6 @@ export default function App() {
               currentRole={currentRole}
               onAddTicket={handleAddTicket}
               onUpdateTicket={handleUpdateTicket}
-              onOpenAiAdvisor={handleOpenAiAssistant}
             />
           )}
 
@@ -664,14 +621,6 @@ export default function App() {
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
         onSuccess={handleAdminLoginSuccess}
-      />
-
-      {/* AI Assistant Modal */}
-      <AiAssistantModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        initialPrompt={aiInitialPrompt}
-        villageContext={villageContext}
       />
 
       {/* Export PDF / CSV / Print Modal */}

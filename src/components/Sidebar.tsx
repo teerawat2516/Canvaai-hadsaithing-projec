@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ) : (
               <>
                 <User className="w-3 h-3" />
-                ลูกบ้านทั่วไป
+                ลูกบ้าน (เข้า Admin)
               </>
             )}
           </button>

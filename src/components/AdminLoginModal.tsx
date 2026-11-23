@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Lock, Eye, EyeOff, X, AlertCircle, Loader2 } from 'lucide-react';
 import { verifyAdminPassword } from '../services/api';
+import { notifyToast } from '../services/notify';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -49,7 +50,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     if (result.ok) {
       onSuccess();
     } else {
-      setError(result.error || 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      const errMsg = result.error || 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
+      setError(errMsg);
+      notifyToast(errMsg, 'error');
       setPassword('');
       inputRef.current?.focus();
     }

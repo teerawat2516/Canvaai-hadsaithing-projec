@@ -298,7 +298,11 @@ app.get('/api/health', (_req, res) => {
 
 // Admin passcode verification endpoint
 app.post('/api/auth/verify-admin', (req, res) => {
-  const submitted = typeof req.body?.password === 'string' ? req.body.password.trim() : '';
+  const raw = typeof req.body?.password === 'string' ? req.body.password : '';
+  const thaiDigits = '๐๑๒๓๔๕๖๗๘๙';
+  const submitted = raw
+    .trim()
+    .replace(/[๐-๙]/g, (d: string) => String(thaiDigits.indexOf(d)));
   const expected = (process.env.ADMIN_PASSCODE || '501107').trim();
 
   if (!submitted) {

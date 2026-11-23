@@ -18,9 +18,9 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { FundTransaction, UserRole } from '../types/village';
-import { VILLAGE_META } from '../data/initialData';
 import { FinanceMonthlyChart } from './FinanceMonthlyChart';
 import { FinanceExpensePieChart } from './FinanceExpensePieChart';
+import { notifyAlert, notifyConfirm } from '../services/notify';
 
 interface FinanceViewProps {
   transactions: FundTransaction[];
@@ -108,7 +108,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || form.amount <= 0) {
-      alert('กรุณากรอกรายละเอียดและจำนวนเงินที่ถูกต้อง');
+      notifyAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกรายละเอียดและจำนวนเงินที่ถูกต้อง', 'warning');
       return;
     }
 
@@ -153,23 +153,23 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Title & Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
             <Wallet className="w-6 h-6 text-amber-600" />
             <span>บัญชีการเงินชุมชน (กองทุนหมู่บ้าน หมู่ 7)</span>
           </h2>
-          <p className="text-xs md:text-sm text-slate-500">
+          <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
             สมุดบัญชีรายรับ-รายจ่าย เงินกองทุนเพื่อการพัฒนาหมู่บ้านหาดทรายทอง ต.สร้างนางขาว
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2.5">
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs transition flex items-center gap-1.5"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs transition flex items-center gap-1.5"
             title="ส่งออกบัญชีการเงินเป็น Excel / CSV"
           >
             <Download className="w-4 h-4 text-emerald-600" />
@@ -180,26 +180,32 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
             <>
               <button
                 onClick={() => handleOpenAddModal('income')}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/25 transition flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/25 transition flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ บันทึกรายรับ</span>
               </button>
               <button
                 onClick={() => handleOpenAddModal('expense')}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/25 transition flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/25 transition flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>- บันทึกรายจ่าย</span>
               </button>
               {onClearAllTransactions && (
                 <button
-                  onClick={() => {
-                    if (window.confirm('ยืนยันเคลียร์ยอดรายรับ-รายจ่ายทั้งหมดให้เป็น 0 บาทใช่หรือไม่? ข้อมูลทั้งหมดจะถูกรีเซ็ต')) {
+                  onClick={async () => {
+                    const confirmed = await notifyConfirm(
+                      'ยืนยันเคลียร์ยอดเป็น 0 บาท?',
+                      'ข้อมูลรายรับ-รายจ่ายทั้งหมดจะถูกรีเซ็ตเป็น 0 บาท',
+                      'ยืนยันเคลียร์ยอด',
+                      'warning'
+                    );
+                    if (confirmed) {
                       onClearAllTransactions();
                     }
                   }}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 shadow-2xs transition flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 shadow-2xs transition flex items-center gap-1.5"
                   title="เคลียร์ยอดรายรับ-รายจ่ายทั้งหมดให้เป็น 0"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -212,45 +218,51 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Net Fund Balance */}
-        <div className="glass-card p-6 rounded-3xl border-l-4 border-l-amber-500 shadow-sm space-y-1">
+        <div className="glass-card p-6 md:p-7 rounded-3xl space-y-2">
           <div className="text-xs font-semibold text-slate-500 flex items-center justify-between">
             <span>ยอดเงินกองทุนคงเหลือสุทธิ</span>
-            <Wallet className="w-4 h-4 text-amber-600" />
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Wallet className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-3xl font-extrabold text-slate-900 font-mono">
+          <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">
             ฿{currentBalance.toLocaleString()}
           </div>
-          <div className="text-[11px] text-slate-500 pt-1">
+          <div className="text-xs text-slate-500 pt-1 leading-relaxed">
             พร้อมตรวจสอบโดยคณะกรรมการหมู่บ้าน (กม.) หมู่ 7
           </div>
         </div>
 
         {/* Total Income */}
-        <div className="glass-card p-6 rounded-3xl border-l-4 border-l-emerald-500 shadow-sm space-y-1">
+        <div className="glass-card p-6 md:p-7 rounded-3xl space-y-2">
           <div className="text-xs font-semibold text-slate-500 flex items-center justify-between">
             <span>รายรับรวมสะสม</span>
-            <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-3xl font-bold text-emerald-600 font-mono">
+          <div className="text-3xl font-bold text-emerald-600 font-mono tabular-nums">
             +฿{totalIncome.toLocaleString()}
           </div>
-          <div className="text-[11px] text-slate-500 pt-1">
+          <div className="text-xs text-slate-500 pt-1 leading-relaxed">
             งบสนับสนุน อบต.สร้างนางขาว, ค่าเช่าเต็นท์/อุปกรณ์, เงินบริจาค
           </div>
         </div>
 
         {/* Total Expenses */}
-        <div className="glass-card p-6 rounded-3xl border-l-4 border-l-rose-500 shadow-sm space-y-1">
+        <div className="glass-card p-6 md:p-7 rounded-3xl space-y-2">
           <div className="text-xs font-semibold text-slate-500 flex items-center justify-between">
             <span>รายจ่ายรวมสะสม</span>
-            <ArrowDownRight className="w-4 h-4 text-rose-500" />
+            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+              <ArrowDownRight className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-3xl font-bold text-rose-600 font-mono">
+          <div className="text-3xl font-bold text-rose-600 font-mono tabular-nums">
             -฿{totalExpense.toLocaleString()}
           </div>
-          <div className="text-[11px] text-slate-500 pt-1">
+          <div className="text-xs text-slate-500 pt-1 leading-relaxed">
             ค่าซ่อมบำรุงไฟทาง, น้ำมันตัดหญ้า, วัสดุพัฒนาชุมชน
           </div>
         </div>
@@ -419,8 +431,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         )}
                         {currentRole === 'admin' && onDeleteTransaction && (
                           <button
-                            onClick={() => {
-                              if (window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
+                            onClick={async () => {
+                              const confirmed = await notifyConfirm(
+                                'ยืนยันการลบรายการ?',
+                                `ต้องการลบรายการ "${tx.description}" จำนวน ฿${tx.amount.toLocaleString()} ใช่หรือไม่?`,
+                                'ลบรายการ',
+                                'warning'
+                              );
+                              if (confirmed) {
                                 onDeleteTransaction(tx.id);
                               }
                             }}

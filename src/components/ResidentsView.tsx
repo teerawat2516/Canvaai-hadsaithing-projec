@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Resident, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
+import { notifyAlert, notifyConfirm } from '../services/notify';
 
 interface ResidentsViewProps {
   residents: Resident[];
@@ -109,7 +110,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.firstName || !formData.lastName || !formData.houseNo) {
-      alert('กรุณากรอกชื่อ นามสกุล และบ้านเลขที่');
+      notifyAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกชื่อ นามสกุล และบ้านเลขที่', 'warning');
       return;
     }
     // Calculate elderly flag automatically
@@ -170,18 +171,18 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Title & Actions Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5 flex-wrap">
             <Users className="w-6 h-6 text-emerald-600" />
             <span>ทะเบียนราษฎร์และข้อมูลประชากร</span>
-            <span className="text-sm font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
               {filteredResidents.length} รายการ
             </span>
           </h2>
-          <p className="text-xs md:text-sm text-slate-500">
+          <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
             ระบบจัดเก็บประวัติลูกบ้านหมู่ที่ 7 บ้านหาดทรายทอง เพื่อการดูแลสวัสดิการและชุมชน
           </p>
         </div>
@@ -287,14 +288,14 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
           <table className="w-full text-left text-xs md:text-sm">
             <thead className="bg-slate-100/90 text-slate-700 font-semibold uppercase text-[11px] tracking-wider border-b border-slate-200">
               <tr>
-                <th className="py-3 px-4">บ้านเลขที่ / ซอย</th>
-                <th className="py-3 px-4">ชื่อ - นามสกุล</th>
-                <th className="py-3 px-4">อายุ / เพศ</th>
-                <th className="py-3 px-4">เบอร์โทรศัพท์</th>
-                <th className="py-3 px-4">สถานะ & สวัสดิการ</th>
-                <th className="py-3 px-4">หมายเหตุด้านสุขภาพ (อสม.)</th>
+                <th className="py-3.5 px-5">บ้านเลขที่ / ซอย</th>
+                <th className="py-3.5 px-5">ชื่อ - นามสกุล</th>
+                <th className="py-3.5 px-5">อายุ / เพศ</th>
+                <th className="py-3.5 px-5">เบอร์โทรศัพท์</th>
+                <th className="py-3.5 px-5">สถานะ & สวัสดิการ</th>
+                <th className="py-3.5 px-5">หมายเหตุด้านสุขภาพ (อสม.)</th>
                 {currentRole === 'admin' && (
-                  <th className="py-3 px-4 text-center">จัดการ</th>
+                  <th className="py-3.5 px-5 text-center">จัดการ</th>
                 )}
               </tr>
             </thead>
@@ -311,7 +312,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                     key={r.id}
                     className="hover:bg-white/60 transition-colors group"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <div className="font-bold text-slate-800 flex items-center gap-1.5">
                         <Home className="w-3.5 h-3.5 text-emerald-600" />
                         {r.houseNo}
@@ -319,7 +320,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                       <div className="text-xs text-slate-500">{r.soi}</div>
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <div className="font-semibold text-slate-900 flex items-center gap-1.5">
                         <span>
                           {r.prefix}
@@ -336,7 +337,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <span className="font-medium text-slate-700">
                         {r.age} ปี
                       </span>
@@ -350,7 +351,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       {r.phoneNumber ? (
                         <a
                           href={`tel:${r.phoneNumber}`}
@@ -365,7 +366,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                       <div className="text-[11px] text-slate-500">{r.occupation || '-'}</div>
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <div className="flex flex-wrap gap-1">
                         {r.isVulnerable && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold flex items-center gap-1">
@@ -388,7 +389,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3 px-4 max-w-xs">
+                    <td className="py-4 px-5 max-w-xs">
                       {r.medicalNote || r.vulnerabilityNote ? (
                         <span className="text-xs text-slate-600 bg-amber-50/70 p-1 rounded border border-amber-200/50 block">
                           {r.vulnerabilityNote || r.medicalNote}
@@ -399,7 +400,7 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                     </td>
 
                     {currentRole === 'admin' && (
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-4 px-5 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100">
                           <button
                             onClick={() => handleOpenEdit(r)}
@@ -409,8 +410,14 @@ export const ResidentsView: React.FC<ResidentsViewProps> = ({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`คุณต้องการลบข้อมูล "${r.prefix}${r.firstName} ${r.lastName}" ใช่หรือไม่?`)) {
+                            onClick={async () => {
+                              const confirmed = await notifyConfirm(
+                                'ยืนยันการลบข้อมูล?',
+                                `คุณต้องการลบข้อมูล "${r.prefix}${r.firstName} ${r.lastName}" ใช่หรือไม่?`,
+                                'ลบข้อมูล',
+                                'warning'
+                              );
+                              if (confirmed) {
                                 onDeleteResident(r.id);
                               }
                             }}

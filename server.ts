@@ -105,15 +105,49 @@ function compactContext(context: any): string {
   }
 }
 
+// Map Gemini API errors into clear Thai messages
+function mapGeminiError(error: any): { status: number; message: string } {
+  const raw = String(error?.message || error || '');
+  if (/GEMINI_API_KEY is not configured/i.test(raw)) {
+    return {
+      status: 500,
+      message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY กรุณาตรวจสอบใน Settings > Secrets',
+    };
+  }
+  if (/403|PERMISSION_DENIED|API_KEY_INVALID|400/i.test(raw)) {
+    return {
+      status: 403,
+      message: 'ไม่สามารถยืนยันสิทธิ์ Gemini API ได้ กรุณาตรวจสอบ API Key ใน Settings > Secrets',
+    };
+  }
+  if (/429|RESOURCE_EXHAUSTED|quota/i.test(raw)) {
+    return {
+      status: 429,
+      message: 'ขณะนี้มีการใช้งาน AI เกินโควตาชั่วคราว กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
+    };
+  }
+  if (/timeout/i.test(raw)) {
+    return {
+      status: 504,
+      message: 'การประมวลผล AI ใช้เวลานานกว่าปกติ กรุณาลองส่งคำถามใหม่อีกครั้ง',
+    };
+  }
+  return {
+    status: 500,
+    message: raw || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API',
+  };
+}
+
 // Resilient generation helper using active models from SDK guidelines
 async function generateVillageAI(
   ai: GoogleGenAI,
   prompt: string,
   systemInstruction?: string
 ): Promise<string> {
-  const attempts: Array<{ model: string; config?: Record<string, any> }> = [
+  const attempts: Array<{ model: string; timeoutMs: number; config?: Record<string, any> }> = [
     {
       model: 'gemini-4-hydrogen',
+      timeoutMs: 18000,
       config: {
         systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -121,12 +155,7 @@ async function generateVillageAI(
     },
     {
       model: 'gemini-3.1-flash-lite',
-      config: {
-        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
-      },
-    },
-    {
-      model: 'gemini-4-hydrogen',
+      timeoutMs: 16000,
       config: {
         systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
       },
@@ -143,7 +172,7 @@ async function generateVillageAI(
           contents: prompt,
           config: attempt.config,
         }),
-        22000,
+        attempt.timeoutMs,
         attempt.model
       );
 
@@ -153,7 +182,7 @@ async function generateVillageAI(
     } catch (err: any) {
       console.warn(`Model ${attempt.model} invocation issue, trying next fallback:`, err?.message || err);
       lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
@@ -178,8 +207,9 @@ app.post('/api/gemini/chat', async (req, res) => {
     res.json({ reply: reply || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้', status: 'success' });
   } catch (error: any) {
     console.error('Error in /api/gemini/chat:', error);
-    res.status(500).json({
-      error: error?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API',
+    const mapped = mapGeminiError(error);
+    res.status(mapped.status).json({
+      error: mapped.message,
       status: 'error',
     });
   }
@@ -216,8 +246,9 @@ ${keyDetails || 'ไม่มีรายละเอียดเพิ่มเ
     });
   } catch (error: any) {
     console.error('Error in /api/gemini/draft-doc:', error);
-    res.status(500).json({
-      error: error?.message || 'Error drafting document with Gemini',
+    const mapped = mapGeminiError(error);
+    res.status(mapped.status).json({
+      error: mapped.message,
       status: 'error',
     });
   }
@@ -252,8 +283,9 @@ app.post('/api/gemini/analyze-community', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error in /api/gemini/analyze-community:', error);
-    res.status(500).json({
-      error: error?.message || 'Error running community analysis',
+    const mapped = mapGeminiError(error);
+    res.status(mapped.status).json({
+      error: mapped.message,
       status: 'error',
     });
   }

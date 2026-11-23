@@ -1,5 +1,6 @@
 import React from 'react';
-import { Database, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Database, RefreshCw } from 'lucide-react';
+import { notifyToast } from '../services/notify';
 
 export type FirebaseConnectionStatus = 'connected' | 'disconnected' | 'connecting';
 
@@ -16,44 +17,62 @@ export const FirebaseStatusIndicator: React.FC<FirebaseStatusIndicatorProps> = (
   onRetry,
   compact = false,
 }) => {
+  const statusLabel =
+    status === 'connected'
+      ? 'Firebase เชื่อมต่อแล้ว'
+      : status === 'disconnected'
+      ? 'Firebase ยังไม่เชื่อมต่อ'
+      : 'กำลังเชื่อมต่อ...';
+
+  const handleCompactClick = () => {
+    if (status === 'disconnected' && onRetry) {
+      onRetry();
+      notifyToast('กำลังตรวจสอบการเชื่อมต่อ Firebase ใหม่อีกครั้ง...', 'info');
+      return;
+    }
+    notifyToast(
+      status === 'connected'
+        ? `เชื่อมต่อฐานข้อมูล Firebase (${projectName}) แล้ว`
+        : 'กำลังตรวจสอบการเชื่อมต่อฐานข้อมูล Firebase...',
+      status === 'connected' ? 'success' : 'info'
+    );
+  };
+
   if (compact) {
     return (
-      <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+      <button
+        type="button"
+        onClick={handleCompactClick}
+        className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 md:px-3 md:py-1.5 rounded-full text-xs font-semibold border transition-all shrink-0 cursor-pointer ${
           status === 'connected'
-            ? 'bg-emerald-500/10 text-emerald-800 border-emerald-300'
+            ? 'bg-emerald-500/10 text-emerald-800 border-emerald-300 hover:bg-emerald-500/20'
             : status === 'disconnected'
-            ? 'bg-rose-500/10 text-rose-800 border-rose-300'
-            : 'bg-amber-500/10 text-amber-800 border-amber-300'
+            ? 'bg-rose-500/10 text-rose-800 border-rose-300 hover:bg-rose-500/20'
+            : 'bg-amber-500/10 text-amber-800 border-amber-300 hover:bg-amber-500/20'
         }`}
-        title={`Firebase: ${
-          status === 'connected'
-            ? `เชื่อมต่อแล้ว (${projectName})`
-            : status === 'disconnected'
-            ? 'ยังไม่ได้เชื่อมต่อ'
-            : 'กำลังตรวจสอบสถานะ'
-        }`}
+        title={statusLabel}
+        aria-label={statusLabel}
       >
         {status === 'connected' && (
-          <span className="relative flex h-2.5 w-2.5">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
           </span>
         )}
         {status === 'disconnected' && (
-          <span className="relative flex h-2.5 w-2.5">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-[0_0_8px_#f43f5e]"></span>
           </span>
         )}
         {status === 'connecting' && (
-          <span className="relative flex h-2.5 w-2.5">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-spin relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
           </span>
         )}
-        <span className="text-[11px] font-bold">
-          {status === 'connected' ? 'Firebase เชื่อมต่อแล้ว' : status === 'disconnected' ? 'Firebase ยังไม่เชื่อมต่อ' : 'กำลังเชื่อมต่อ...'}
+        <span className="hidden md:inline text-[11px] font-bold whitespace-nowrap">
+          {statusLabel}
         </span>
-      </div>
+      </button>
     );
   }
 
@@ -68,7 +87,6 @@ export const FirebaseStatusIndicator: React.FC<FirebaseStatusIndicatorProps> = (
       }`}
     >
       <div className="flex items-center gap-2.5">
-        {/* LED Light Indicator */}
         <div className="relative flex items-center justify-center w-5 h-5">
           {status === 'connected' ? (
             <>
@@ -76,9 +94,7 @@ export const FirebaseStatusIndicator: React.FC<FirebaseStatusIndicatorProps> = (
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
             </>
           ) : status === 'disconnected' ? (
-            <>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 shadow-[0_0_10px_#f43f5e]"></span>
-            </>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 shadow-[0_0_10px_#f43f5e]"></span>
           ) : (
             <span className="animate-spin inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
           )}

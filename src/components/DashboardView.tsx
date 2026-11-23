@@ -8,13 +8,12 @@ import {
   CalendarCheck,
   TrendingUp,
   AlertCircle,
-  Sparkles,
   ArrowRight,
   CheckCircle2,
   Clock,
   Megaphone,
-  ArrowUpRight,
-  ArrowDownRight
+  Compass,
+  Sparkles
 } from 'lucide-react';
 import {
   Resident,
@@ -32,10 +31,10 @@ interface DashboardViewProps {
   bookings: FacilityBooking[];
   announcements: VillageAnnouncement[];
   onNavigateTab: (tab: any) => void;
-  onOpenAiAssistant: (initialPrompt?: string) => void;
   onNewRepairClick: () => void;
   onNewPaymentClick: () => void;
   onNewBookingClick: () => void;
+  onOpenAiAssistant: (prompt?: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -45,10 +44,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   bookings,
   announcements,
   onNavigateTab,
-  onOpenAiAssistant,
   onNewRepairClick,
   onNewPaymentClick,
   onNewBookingClick,
+  onOpenAiAssistant,
 }) => {
   // Calculations
   const totalResidents = residents.length;
@@ -92,45 +91,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const recentTransactions = fundTransactions.slice(0, 3);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Welcome Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 text-white p-6 md:p-8 shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 text-white p-7 md:p-9 shadow-lg">
         <div className="absolute right-0 top-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-emerald-100">
-              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-              ระบบบริหารจัดการอัจฉริยะ • อบต.สร้างนางขาว
+          <div className="space-y-2.5">
+            <div className="text-xs font-medium text-emerald-100/90">
+              ระบบบริหารจัดการหมู่บ้าน · อบต.สร้างนางขาว อำเภอโพนพิสัย
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               {VILLAGE_META.villageName} {VILLAGE_META.moo}
             </h1>
-            <p className="text-sm md:text-base text-emerald-100 max-w-2xl leading-relaxed">
-              ยินดีต้อนรับสู่ระบบข้อมูลกลางเพื่อการพัฒนาชุมชน ตรวจสอบทะเบียนราษฎร์ บัญชีการเงินชุมชน
-              แจ้งซ่อมและร้องเรียน ยืมของส่วนกลาง และปรึกษาแผนพัฒนาหมู่บ้านด้วยผู้ช่วย Gemini AI
+            <p className="text-sm md:text-base text-emerald-50/95 max-w-2xl leading-relaxed">
+              ระบบข้อมูลกลางเพื่อการพัฒนาชุมชน ตรวจสอบทะเบียนราษฎร์ บัญชีการเงินชุมชน
+              แจ้งซ่อมและร้องเรียน ยืม-คืนอุปกรณ์ส่วนกลาง และติดตามข่าวสารหมู่บ้านได้อย่างสะดวกและโปร่งใส
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 shrink-0">
             <button
-              onClick={() =>
-                onOpenAiAssistant(
-                  'ช่วยสรุปสถานะภาพรวมของหมู่บ้านหาดทรายทอง หมู่ 7 และวิเคราะห์ 3 ปัญหาเร่งด่วนที่ผู้ใหญ่บ้านควรดำเนินการในสัปดาห์นี้'
-                )
-              }
-              className="px-4 py-2.5 rounded-2xl bg-white text-emerald-800 font-bold text-sm shadow-lg hover:bg-emerald-50 transition flex items-center gap-2 group"
+              onClick={() => onOpenAiAssistant()}
+              className="px-5 py-3 rounded-2xl bg-white text-emerald-800 font-bold text-sm shadow-md hover:bg-emerald-50 transition flex items-center gap-2"
             >
-              <Sparkles className="w-4 h-4 text-violet-600 group-hover:rotate-12 transition-transform" />
-              <span>AI วิเคราะห์ภาพรวมด่วน</span>
-              <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-mono">
-                Gemini
-              </span>
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>ปรึกษา AI ผู้ช่วย</span>
+            </button>
+            <button
+              onClick={onNewPaymentClick}
+              className="px-5 py-3 rounded-2xl bg-white/15 hover:bg-white/25 backdrop-blur-md text-white font-semibold text-sm border border-white/30 transition flex items-center gap-2"
+            >
+              <Wallet className="w-4 h-4 text-amber-200" />
+              <span>ดูบัญชีการเงิน</span>
             </button>
             <button
               onClick={onNewRepairClick}
-              className="px-4 py-2.5 rounded-2xl bg-emerald-500/30 hover:bg-emerald-500/50 backdrop-blur-md text-white font-semibold text-sm border border-white/30 transition flex items-center gap-2"
+              className="px-5 py-3 rounded-2xl bg-emerald-500/30 hover:bg-emerald-500/50 backdrop-blur-md text-white font-semibold text-sm border border-white/30 transition flex items-center gap-2"
             >
-              <Wrench className="w-4 h-4 text-emerald-200" />
+              <Wrench className="w-4 h-4 text-emerald-100" />
               <span>แจ้งซ่อมด่วน</span>
             </button>
           </div>
@@ -156,20 +154,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* Primary Key Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Residents Stat */}
         <div
           onClick={() => onNavigateTab('residents')}
-          className="glass-card p-5 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 transition cursor-pointer border-l-4 border-l-emerald-500"
+          className="glass-card p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer space-y-2"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">ประชากรทั้งหมด</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-800">{totalResidents} <span className="text-xs font-normal text-slate-500">คน</span></div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+          <div className="text-2xl font-bold text-slate-800 tabular-nums">
+            {totalResidents} <span className="text-xs font-normal text-slate-500">คน</span>
+          </div>
+          <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
             <span>ชาย {maleCount} คน</span>
             <span>หญิง {femaleCount} คน</span>
           </div>
@@ -178,16 +178,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Households Stat */}
         <div
           onClick={() => onNavigateTab('residents')}
-          className="glass-card p-5 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 transition cursor-pointer border-l-4 border-l-sky-500"
+          className="glass-card p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer space-y-2"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">จำนวนครัวเรือน</span>
-            <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
               <Home className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-800">{totalHouseholds} <span className="text-xs font-normal text-slate-500">หลังคาเรือน</span></div>
-          <div className="text-[11px] text-sky-600 font-medium mt-1">
+          <div className="text-2xl font-bold text-slate-800 tabular-nums">
+            {totalHouseholds} <span className="text-xs font-normal text-slate-500">หลังคาเรือน</span>
+          </div>
+          <div className="text-xs text-sky-700 font-medium pt-1">
             {VILLAGE_META.subdistrict} {VILLAGE_META.district}
           </div>
         </div>
@@ -195,16 +197,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Elderly & Vulnerable Care */}
         <div
           onClick={() => onNavigateTab('residents')}
-          className="glass-card p-5 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 transition cursor-pointer border-l-4 border-l-pink-500"
+          className="glass-card p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer space-y-2"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">ผู้สูงอายุ / เปราะบาง</span>
-            <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center">
               <HeartHandshake className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-800">{elderlyCount} <span className="text-xs font-normal text-slate-500">คน</span></div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+          <div className="text-2xl font-bold text-slate-800 tabular-nums">
+            {elderlyCount} <span className="text-xs font-normal text-slate-500">คน</span>
+          </div>
+          <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
             <span>อายุ 60 ปีขึ้นไป</span>
             <span className="text-pink-600 font-semibold">ติดเตียง {vulnerableCount} คน</span>
           </div>
@@ -213,18 +217,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Fund Balance */}
         <div
           onClick={() => onNavigateTab('finance')}
-          className="glass-card p-5 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 transition cursor-pointer border-l-4 border-l-amber-500"
+          className="glass-card p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer space-y-2"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">เงินกองทุนหมู่บ้าน</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Wallet className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-800">
+          <div className="text-2xl font-bold text-slate-800 font-mono tabular-nums">
             ฿{fundBalance.toLocaleString()}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+          <div className="text-xs text-slate-500 flex items-center justify-between pt-1 font-mono tabular-nums">
             <span className="text-emerald-600">+฿{totalIncome.toLocaleString()}</span>
             <span className="text-rose-500">-฿{totalExpense.toLocaleString()}</span>
           </div>
@@ -372,22 +376,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
           </div>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-4 pt-2">
             {dynamicSoiStats.map((item, idx) => {
               const maxCount = Math.max(...dynamicSoiStats.map((s) => s.count), 1);
               const percent = Math.round((item.count / maxCount) * 100);
               return (
-                <div key={idx} className="space-y-1">
-                  <div className="flex justify-between text-xs font-medium">
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex justify-between text-xs md:text-sm font-medium">
                     <span className="text-slate-700">{item.soi}</span>
-                    <span className="text-slate-500 font-semibold">{item.count} คน</span>
+                    <span className="text-slate-600 font-semibold tabular-nums">{item.count} คน</span>
                   </div>
-                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-teal-400 to-emerald-500 rounded-full"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
+                  <svg
+                    className="w-full h-2.5 rounded-full overflow-hidden"
+                    viewBox="0 0 100 10"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <rect x="0" y="0" width="100" height="10" fill="#f1f5f9" rx="5" />
+                    <rect x="0" y="0" width={percent} height="10" fill="#10b981" rx="5" />
+                  </svg>
                 </div>
               );
             })}
@@ -395,17 +402,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Quick Actions & Emergency Contacts */}
-        <div className="glass-card p-6 rounded-3xl space-y-4 flex flex-col justify-between">
+        <div className="glass-card p-6 md:p-7 rounded-3xl space-y-5 flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <Compass className="w-5 h-5 text-emerald-600" />
               <h3 className="font-bold text-slate-800 text-base">เครื่องมือช่วยด่วน</h3>
             </div>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
               ทางลัดอำนวยความสะดวกสำหรับผู้ใหญ่บ้านและคณะกรรมการ
             </p>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-2.5 pt-2">
+              <button
+                onClick={() => onOpenAiAssistant('ช่วยสรุปภาพรวมหมู่บ้านหาดทรายทอง หมู่ 7 และแนะนำเรื่องเร่งด่วนที่ควรดำเนินการ')}
+                className="w-full p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/70 text-emerald-900 text-xs font-bold flex items-center justify-between transition text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  ให้ AI สรุปสถานการณ์และแนะนำงานเร่งด่วน
+                </span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
               <button
                 onClick={() => onNavigateTab('finance')}
                 className="w-full p-3 rounded-xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/60 text-amber-900 text-xs font-semibold flex items-center justify-between transition text-left"

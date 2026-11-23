@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { VillageLeader, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
+import { notifyAlert } from '../services/notify';
 
 interface LeadersViewProps {
   leaders: VillageLeader[];
@@ -114,7 +115,7 @@ export const LeadersView: React.FC<LeadersViewProps> = ({
     if (!editingLeader) return;
 
     if (!formName.trim() || !formPhone.trim()) {
-      alert('กรุณากรอกชื่อและเบอร์โทรศัพท์ที่ติดต่อได้');
+      notifyAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกชื่อและเบอร์โทรศัพท์ที่ติดต่อได้', 'warning');
       return;
     }
 

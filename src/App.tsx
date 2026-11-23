@@ -10,11 +10,12 @@ import { RepairView } from './components/RepairView';
 import { BookingView } from './components/BookingView';
 import { NewsView } from './components/NewsView';
 import { OfficialDocsView } from './components/OfficialDocsView';
-import { AiAssistantModal } from './components/AiAssistantModal';
 import { PrintableReceipt } from './components/PrintableReceipt';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { FirebaseConnectionStatus } from './components/FirebaseStatusIndicator';
+import { AiAssistantModal } from './components/AiAssistantModal';
 import { testFirebaseConnection } from './services/firebase';
+import type { FirebaseConnectionStatus } from './components/FirebaseStatusIndicator';
+import { notifyToast } from './services/notify';
 import {
   seedFirestoreIfEmpty,
   subscribeResidents,
@@ -53,8 +54,7 @@ import {
   INITIAL_BOOKINGS,
   INITIAL_ANNOUNCEMENTS,
   INITIAL_LEADERS,
-  INITIAL_COMMITTEE,
-  VILLAGE_META
+  VILLAGE_META,
 } from './data/initialData';
 
 export default function App() {
@@ -114,21 +114,20 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_LEADERS;
   });
 
-  // AI Assistant Modal
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>(undefined);
-
   // Printable Receipt / Voucher
   const [activeReceipt, setActiveReceipt] = useState<FundTransaction | null>(null);
 
-  // Toast Notification
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  // AI Assistant Modal
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiInitialPrompt, setAiInitialPrompt] = useState('');
+
+  const handleOpenAiAssistant = useCallback((prompt = '') => {
+    setAiInitialPrompt(prompt);
+    setIsAiModalOpen(true);
+  }, []);
 
   const showToast = useCallback((text: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToastMessage({ text, type });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
+    notifyToast(text, type);
   }, []);
 
   // Connection Checker Function
@@ -137,10 +136,9 @@ export default function App() {
     const isOk = await testFirebaseConnection();
     if (isOk) {
       setFirebaseStatus('connected');
-      showToast('🟢 เชื่อมต่อ Firebase สำเร็จ (Canvaai-hadsaithing projec)', 'success');
     } else {
       setFirebaseStatus('disconnected');
-      showToast('🔴 ยังไม่ได้เชื่อมต่อ Firebase (กำลังทำงานในโหมด Offline)', 'error');
+      showToast('ยังไม่ได้เชื่อมต่อฐานข้อมูล (กำลังทำงานในโหมด Offline)', 'error');
     }
   }, [showToast]);
 
@@ -292,11 +290,6 @@ export default function App() {
     setCurrentRole('admin');
     setIsAdminLoginOpen(false);
     showToast('เข้าสู่โหมด: ผู้ดูแลระบบ (Admin / ผู้ใหญ่บ้าน) สำเร็จ', 'success');
-  };
-
-  const handleOpenAiAssistant = (prompt?: string) => {
-    setAiInitialPrompt(prompt);
-    setIsAiModalOpen(true);
   };
 
   // Resident Handlers (Sync to Firebase)
@@ -495,71 +488,44 @@ export default function App() {
     booking: 'ยืม-คืนอุปกรณ์ & สถานที่',
     news: 'ข่าวสารประชาสัมพันธ์',
     docs: 'ออกหนังสือ & รายงาน',
-    ai_advisor: 'AI วางแผนกลยุทธ์หมู่บ้าน',
   };
 
-  // Village context object for Gemini High Thinking
+  // Compact village context for AI Assistant
+  const totalIncome = fundTransactions
+    .filter((t) => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = fundTransactions
+    .filter((t) => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
   const villageContext = {
-    village: VILLAGE_META,
+    village: {
+      villageName: VILLAGE_META.villageName,
+      headmanName: VILLAGE_META.headmanName,
+    },
     totalResidents: residents.length,
     maleCount: residents.filter((r) => r.gender === 'ชาย').length,
     femaleCount: residents.filter((r) => r.gender === 'หญิง').length,
     totalHouseholds: new Set(residents.map((r) => r.houseNo)).size,
     elderlyCount: residents.filter((r) => r.isElderly || r.age >= 60).length,
     vulnerableCount: residents.filter((r) => r.isVulnerable).length,
+    totalIncome,
+    totalExpense,
+    fundBalance: totalIncome - totalExpense,
     openRepairs: repairTickets
       .filter((t) => t.status !== 'resolved')
-      .map((t) => ({
-        code: t.ticketCode,
-        category: t.category,
-        title: t.title,
-        location: t.location,
-        priority: t.priority,
-        status: t.status,
-      })),
-    recentBookings: bookings.filter((b) => b.status === 'approved' || b.status === 'in_use'),
-    leaders: leaders.map((l) => ({ name: l.name, position: l.positionTitle, phone: l.phone })),
-    committee: INITIAL_COMMITTEE,
-    firebaseProject: 'Canvaai-hadsaithing projec',
-    firebaseConnected: firebaseStatus === 'connected',
+      .map((t) => ({ title: t.title, location: t.location, priority: t.priority })),
+    recentBookings: bookings.slice(0, 5).map((b) => ({ itemName: b.itemName, status: b.status })),
+    leaders: leaders.map((l) => ({ name: l.name, position: l.positionTitle })),
   };
 
   return (
     <div className="flex h-screen overflow-hidden text-slate-800 antialiased">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl text-xs md:text-sm font-semibold shadow-2xl border animate-in slide-in-from-top-4 duration-200 flex items-center gap-2.5 ${
-            toastMessage.type === 'success'
-              ? 'bg-emerald-950 text-emerald-100 border-emerald-500/40'
-              : toastMessage.type === 'error'
-              ? 'bg-rose-950 text-rose-100 border-rose-500/40'
-              : 'bg-slate-900 text-white border-white/20'
-          }`}
-        >
-          <span
-            className={`w-2.5 h-2.5 rounded-full ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]'
-                : toastMessage.type === 'error'
-                ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
-                : 'bg-sky-400'
-            }`}
-          />
-          <span>{toastMessage.text}</span>
-        </div>
-      )}
-
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          if (tab === 'ai_advisor') {
-            handleOpenAiAssistant();
-          } else {
-            setActiveTab(tab);
-          }
-        }}
+        onSelectTab={(tab) => setActiveTab(tab)}
+        onOpenAiAssistant={() => handleOpenAiAssistant()}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         currentRole={currentRole}
@@ -581,7 +547,7 @@ export default function App() {
         />
 
         {/* Scrollable View Container */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-5 py-7 md:px-10 md:py-9">
           {activeTab === 'dashboard' && (
             <DashboardView
               residents={residents}
@@ -590,10 +556,10 @@ export default function App() {
               bookings={bookings}
               announcements={announcements}
               onNavigateTab={(tab) => setActiveTab(tab)}
-              onOpenAiAssistant={handleOpenAiAssistant}
               onNewRepairClick={() => setActiveTab('repair')}
               onNewPaymentClick={() => setActiveTab('finance')}
               onNewBookingClick={() => setActiveTab('booking')}
+              onOpenAiAssistant={handleOpenAiAssistant}
             />
           )}
 
@@ -649,7 +615,6 @@ export default function App() {
               announcements={announcements}
               currentRole={currentRole}
               onAddAnnouncement={handleAddAnnouncement}
-              onOpenAiAssistant={handleOpenAiAssistant}
             />
           )}
 
@@ -657,22 +622,10 @@ export default function App() {
             <OfficialDocsView
               residents={residents}
               currentRole={currentRole}
-              onOpenAiAssistant={handleOpenAiAssistant}
             />
           )}
         </div>
       </main>
-
-      {/* AI Assistant Modal (Gemini 4 Argon with High Thinking Mode) */}
-      <AiAssistantModal
-        isOpen={isAiModalOpen}
-        onClose={() => {
-          setIsAiModalOpen(false);
-          setAiInitialPrompt(undefined);
-        }}
-        villageContext={villageContext}
-        initialPrompt={aiInitialPrompt}
-      />
 
       {/* Printable Receipt / Voucher Modal */}
       {activeReceipt && (
@@ -687,6 +640,14 @@ export default function App() {
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
         onSuccess={handleAdminLoginSuccess}
+      />
+
+      {/* AI Assistant Modal */}
+      <AiAssistantModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        initialPrompt={aiInitialPrompt}
+        villageContext={villageContext}
       />
     </div>
   );

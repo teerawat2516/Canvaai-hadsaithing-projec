@@ -8,13 +8,14 @@ import {
   MapPin,
   Phone,
   User,
-  Sparkles,
   ArrowRight,
   Filter,
   Check,
   X,
-  FileQuestion
+  FileQuestion,
+  Sparkles
 } from 'lucide-react';
+import { notifyAlert } from '../services/notify';
 import {
   RepairTicket,
   RepairCategory,
@@ -29,7 +30,7 @@ interface RepairViewProps {
   currentRole: UserRole;
   onAddTicket: (ticket: RepairTicket) => void;
   onUpdateTicket: (ticket: RepairTicket) => void;
-  onOpenAiAdvisor: (prompt: string) => void;
+  onOpenAiAdvisor?: (prompt: string) => void;
 }
 
 export const RepairView: React.FC<RepairViewProps> = ({
@@ -136,7 +137,7 @@ export const RepairView: React.FC<RepairViewProps> = ({
   const handleSubmitNew = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.location || !form.reporterName) {
-      alert('กรุณากรอกหัวข้อเรื่อง สถานที่ และชื่อผู้แจ้ง');
+      notifyAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกหัวข้อเรื่อง สถานที่ และชื่อผู้แจ้ง', 'warning');
       return;
     }
     const newTicket: RepairTicket = {
@@ -177,40 +178,44 @@ export const RepairView: React.FC<RepairViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Header and Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5 flex-wrap">
             <Wrench className="w-6 h-6 text-rose-600" />
             <span>แจ้งซ่อมสาธารณูปโภค & เรื่องร้องเรียน</span>
-            <span className="text-sm font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-rose-100 text-rose-800">
               {tickets.filter((t) => t.status !== 'resolved').length} เรื่องค้างอยู่
             </span>
           </h2>
-          <p className="text-xs md:text-sm text-slate-500">
+          <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
             ช่องทางรับแจ้งไฟทางดับ ท่อประปาแตก ถนนเป็นหลุม ขยะตกค้าง และความเดือดร้อนของชาวบ้าน
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() =>
-              onOpenAiAdvisor(
-                `ช่วยวิเคราะห์รายการแจ้งซ่อมสาธารณะของหมู่บ้านหาดทรายทอง หมู่ 7 ที่ยังค้างอยู่ ${
-                  tickets.filter((t) => t.status !== 'resolved').length
-                } เรื่อง จัดลำดับความเร่งด่วนตามผลกระทบต่อความปลอดภัยของชาวบ้าน และแนะนำหน่วยงานที่ต้องประสานงาน (การไฟฟ้า, อบต., การประปา)`
-              )
-            }
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 hover:opacity-95 transition flex items-center gap-1.5"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>AI ช่วยจัดลำดับความเร่งด่วน</span>
-          </button>
-
+          {onOpenAiAdvisor && (
+            <button
+              onClick={() => {
+                const pendingSummary = tickets
+                  .filter((t) => t.status !== 'resolved')
+                  .slice(0, 6)
+                  .map((t) => `- [${t.priority}] ${t.title} (${t.location})`)
+                  .join('\n');
+                onOpenAiAdvisor(
+                  `ช่วยจัดลำดับความสำคัญและแนะนำแนวทางแก้ไขเรื่องแจ้งซ่อมที่ค้างอยู่ตอนนี้:\n${pendingSummary || 'ไม่มีเรื่องค้างอยู่'}`
+                );
+              }}
+              className="px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>ขอคำแนะนำ AI</span>
+            </button>
+          )}
           <button
             onClick={() => setIsNewModalOpen(true)}
-            className="px-4 py-2 rounded-xl text-xs md:text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/25 transition flex items-center gap-1.5"
+            className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/25 transition flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>แจ้งเรื่องใหม่</span>

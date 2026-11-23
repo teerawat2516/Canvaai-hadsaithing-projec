@@ -2,38 +2,32 @@ import React, { useState } from 'react';
 import {
   FileText,
   Printer,
-  Sparkles,
-  Download,
   Copy,
   Check,
   Building,
-  UserCheck,
-  Calendar,
-  Send
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { Resident, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
 import { draftOfficialDocument } from '../services/api';
+import { notifyToast, notifyAlert } from '../services/notify';
 
 interface OfficialDocsViewProps {
   residents: Resident[];
   currentRole: UserRole;
-  onOpenAiAssistant: (prompt: string) => void;
 }
 
 export const OfficialDocsView: React.FC<OfficialDocsViewProps> = ({
   residents,
-  currentRole,
-  onOpenAiAssistant,
 }) => {
   const [docType, setDocType] = useState<string>('cert_residence');
   const [selectedResidentId, setSelectedResidentId] = useState<string>(residents[0]?.id || '');
-  const [topic, setTopic] = useState<string>('ขอรับรองถิ่นที่อยู่และความประพฤติ');
   const [purpose, setPurpose] = useState<string>('เพื่อนำไปใช้ประกอบการสมัครงานและทำธุรกรรมการเงิน');
   const [extraDetails, setExtraDetails] = useState<string>('');
   const [generatedContent, setGeneratedContent] = useState<string>('');
-  const [isDrafting, setIsDrafting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [isDraftingAi, setIsDraftingAi] = useState<boolean>(false);
 
   const selectedResident = residents.find((r) => r.id === selectedResidentId) || residents[0];
 
@@ -120,61 +114,76 @@ ${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastN
 จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ และขอขอบพระคุณเป็นอย่างสูงมา ณ โอกาสนี้
 
 
-(ลงชื่อ).....................................................................
+      (ลงชื่อ).....................................................................
       (นายอำนาจ พันนาขา)
       ผู้ใหญ่บ้าน หมู่ที่ 7 บ้านหาดทรายทอง`;
+      setGeneratedContent(text);
+    } else if (docType === 'dispute_settlement') {
+      const text = `บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาทชุมชน
+ที่ทำการผู้ใหญ่บ้าน หมู่ที่ 7 บ้านหาดทรายทอง
+ตำบลสร้างนางขาว อำเภอโพนพิสัย จังหวัดหนองคาย
+
+วันที่ ${thaiDateString}
+
+เรื่อง: ${purpose || 'การไกล่เกลี่ยข้อพิพาทและตกลงร่วมกันในชุมชน'}
+
+รายละเอียดและข้อตกลงร่วมกัน:
+${extraDetails || 'คู่กรณีทั้งสองฝ่ายได้ตกลงยินยอมแก้ไขปัญหาด้วยสันติวิธี เคารพสิทธิซึ่งกันและกัน และอยู่ร่วมกันในชุมชนอย่างสงบเรียบร้อย'}
+
+ทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในบันทึกข้อตกลงนี้โดยตลอดแล้ว เห็นว่าถูกต้องตรงตามความประสงค์ จึงลงลายมือชื่อไว้เป็นหลักฐานต่อหน้าผู้ใหญ่บ้านและพยาน
+
+
+(ลงชื่อ).................................................... คู่กรณีฝ่ายที่ 1
+(ลงชื่อ).................................................... คู่กรณีฝ่ายที่ 2
+(ลงชื่อ).................................................... พยาน / ผู้ใหญ่บ้าน
+      (นายอำนาจ พันนาขา)`;
       setGeneratedContent(text);
     }
   };
 
-  // Draft with Gemini 4 Argon High Thinking
   const handleDraftWithAi = async () => {
-    setIsDrafting(true);
-    try {
-      const res = await draftOfficialDocument({
-        docType:
-          docType === 'cert_residence'
-            ? 'หนังสือรับรองความประพฤติและถิ่นที่อยู่'
-            : docType === 'meeting_notice'
-            ? 'หนังสือเชิญประชุมหมู่บ้าน'
-            : docType === 'dispute_settlement'
-            ? 'บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาทชุมชน'
-            : 'หนังสือราชการขอความอนุเคราะห์ อบต.',
-        topic,
-        applicantName: selectedResident
-          ? `${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastName}`
-          : 'ชาวบ้านหมู่ 7',
-        houseNo: selectedResident?.houseNo || '1/1',
-        recipient: docType === 'subdistrict_request' ? 'นายก อบต.สร้างนางขาว' : 'ผู้เกี่ยวข้อง',
-        keyDetails: `วัตถุประสงค์: ${purpose}\nรายละเอียดเพิ่มเติม: ${extraDetails || 'ไม่มี'}\nข้อมูลผู้ใหญ่บ้าน: นายอำนาจ พันนาขา หมู่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย`,
-      });
-
-      if (res.status === 'success' && res.content) {
-        setGeneratedContent(res.content);
-      } else {
-        alert(res.error || 'เกิดข้อผิดพลาดในการประมวลผล');
-      }
-    } finally {
-      setIsDrafting(false);
+    setIsDraftingAi(true);
+    const docTypeLabels: Record<string, string> = {
+      cert_residence: 'หนังสือรับรองถิ่นที่อยู่และความประพฤติ',
+      meeting_notice: 'หนังสือนัดประชุมหมู่บ้าน/รายงานการประชุม',
+      subdistrict_request: 'หนังสือขอความอนุเคราะห์ / งบประมาณ อบต.',
+      dispute_settlement: 'บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาท',
+    };
+    const res = await draftOfficialDocument({
+      docType: docTypeLabels[docType] || docType,
+      topic: purpose || 'เอกสารราชการหมู่บ้าน',
+      keyDetails: extraDetails,
+      applicantName: selectedResident
+        ? `${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastName}`
+        : undefined,
+      houseNo: selectedResident?.houseNo,
+    });
+    setIsDraftingAi(false);
+    if (res.status === 'error') {
+      notifyAlert('ไม่สามารถร่างเอกสารด้วย AI ได้', res.error || 'กรุณาลองใหม่อีกครั้ง', 'error');
+      return;
     }
+    setGeneratedContent(res.content);
+    notifyToast('AI ร่างเอกสารเรียบร้อยแล้ว', 'success');
   };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedContent);
     setCopied(true);
+    notifyToast('คัดลอกข้อความเรียบร้อยแล้ว', 'success');
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
             <FileText className="w-6 h-6 text-orange-600" />
             <span>ออกหนังสือราชการ & เอกสารรับรองหมู่บ้าน</span>
           </h2>
-          <p className="text-xs md:text-sm text-slate-500">
+          <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
             สร้างหนังสือรับรองความประพฤติ หนังสือนัดประชุม หนังสือขอรับงบประมาณ พร้อมพิมพ์ลายเซ็นตราประทับ
           </p>
         </div>
@@ -266,34 +275,37 @@ ${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastN
             />
           </div>
 
-          <div className="pt-2 flex flex-col gap-2">
+          <div className="pt-3 flex flex-col gap-2.5">
             <button
               onClick={handleGenerateTemplate}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs md:text-sm transition flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs md:text-sm transition flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
               <span>สร้างร่างจากแบบฟอร์มมาตรฐาน</span>
             </button>
-
-            {/* AI Generator Button */}
             <button
+              type="button"
               onClick={handleDraftWithAi}
-              disabled={isDrafting}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-xs md:text-sm shadow-md shadow-indigo-600/25 transition flex items-center justify-center gap-2"
+              disabled={isDraftingAi}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 shadow-sm"
             >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>{isDrafting ? 'AI กำลังคิดและร่างเอกสาร...' : 'ให้ AI ช่วยร่างอย่างเป็นทางการ (Gemini AI)'}</span>
+              {isDraftingAi ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              <span>{isDraftingAi ? 'AI กำลังร่างเอกสาร...' : 'ให้ AI ช่วยเรียบเรียงเอกสาร'}</span>
             </button>
           </div>
         </div>
 
         {/* Right Column: Document Preview (Printable View) */}
         <div className="lg:col-span-7">
-          <div className="glass-card bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-slate-200 text-slate-900 font-sarabun min-h-[600px] flex flex-col justify-between">
+          <div className="glass-card bg-white p-8 md:p-12 rounded-3xl shadow-lg border border-slate-200 text-slate-900 font-sarabun min-h-[600px] flex flex-col justify-between">
             {generatedContent ? (
               <div className="space-y-6">
                 {/* Official Crest Header */}
-                <div className="text-center space-y-1 pb-4 border-b border-slate-200">
+                <div className="text-center space-y-1.5 pb-5 border-b border-slate-200">
                   <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 border-2 border-slate-300 flex items-center justify-center text-slate-700 font-bold text-xl mb-1 shadow-inner">
                     ตรา
                   </div>
@@ -314,8 +326,8 @@ ${selectedResident.prefix}${selectedResident.firstName} ${selectedResident.lastN
               <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-3">
                 <FileText className="w-12 h-12 text-slate-300 stroke-1" />
                 <h4 className="font-bold text-slate-600 text-base">ยังไม่มีการสร้างเอกสาร</h4>
-                <p className="text-xs max-w-sm">
-                  เลือกประเภทเอกสารทางด้านซ้าย แล้วกดปุ่ม "สร้างร่างจากแบบฟอร์ม" หรือกดให้ "AI ช่วยร่างอย่างเป็นทางการ" เพื่อดูตัวอย่างก่อนพิมพ์
+                <p className="text-xs md:text-sm max-w-sm leading-relaxed">
+                  เลือกประเภทเอกสารทางด้านซ้าย แล้วกดปุ่ม "สร้างร่างจากแบบฟอร์มมาตรฐาน" เพื่อดูตัวอย่างก่อนพิมพ์
                 </p>
               </div>
             )}

@@ -7,14 +7,14 @@ import {
   CalendarCheck,
   Megaphone,
   FileText,
-  Sparkles,
   Home,
   Shield,
   Award,
   User,
   X,
   MapPin,
-  Phone
+  Phone,
+  Sparkles
 } from 'lucide-react';
 import { UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
@@ -27,12 +27,12 @@ export type TabKey =
   | 'repair'
   | 'booking'
   | 'news'
-  | 'docs'
-  | 'ai_advisor';
+  | 'docs';
 
 interface SidebarProps {
   activeTab: TabKey;
   onSelectTab: (tab: TabKey) => void;
+  onOpenAiAssistant: () => void;
   isOpen: boolean;
   onClose: () => void;
   currentRole: UserRole;
@@ -44,6 +44,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
+  onOpenAiAssistant,
   isOpen,
   onClose,
   currentRole,
@@ -111,14 +112,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: FileText,
       activeColor: 'from-orange-500 to-amber-600',
       iconBg: 'bg-orange-100 text-orange-600',
-    },
-    {
-      id: 'ai_advisor' as TabKey,
-      label: 'AI วางแผนกลยุทธ์หมู่บ้าน',
-      icon: Sparkles,
-      activeColor: 'from-indigo-600 via-purple-600 to-pink-600',
-      iconBg: 'bg-indigo-100 text-indigo-600',
-      isAi: true,
     },
   ];
 
@@ -190,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -202,15 +195,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onSelectTab(item.id);
                   onClose();
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl font-medium text-sm transition-all text-left ${
                   isActive
                     ? `text-white bg-gradient-to-r ${item.activeColor} shadow-md`
-                    : 'text-slate-700 hover:bg-white/90 hover:text-slate-900'
+                    : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0 ${
                       isActive ? 'bg-white/25 text-white' : item.iconBg
                     }`}
                   >
@@ -219,25 +212,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="truncate">{item.label}</span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  {item.isAi && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-mono bg-emerald-400 text-emerald-950 font-bold uppercase animate-pulse">
-                      Gemini
-                    </span>
-                  )}
-                  {item.badge !== undefined && (
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                        isActive ? 'bg-white text-slate-800' : item.badgeColor
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
+                {item.badge !== undefined && (
+                  <span
+                    className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${
+                      isActive ? 'bg-white text-slate-800' : item.badgeColor
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
+
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                onOpenAiAssistant();
+                onClose();
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-md shadow-emerald-600/20 transition-all text-left"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <span className="truncate">AI ผู้ช่วยหมู่บ้าน</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 text-white font-bold shrink-0">
+                ถาม-ตอบ
+              </span>
+            </button>
+          </div>
         </nav>
 
         {/* Footer Sidebar Info */}

@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { FacilityBooking, UserRole } from '../types/village';
+import { notifyAlert } from '../services/notify';
 import { VILLAGE_META } from '../data/initialData';
 
 interface BookingViewProps {
@@ -85,7 +86,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.applicantName || !form.applicantHouseNo || !form.purpose) {
-      alert('กรุณากรอกข้อมูลผู้ยืมและวัตถุประสงค์');
+      notifyAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลผู้ยืมและวัตถุประสงค์', 'warning');
       return;
     }
     const newBooking: FacilityBooking = {
@@ -109,15 +110,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-8 pb-16">
       {/* Title & Action */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
             <CalendarCheck className="w-6 h-6 text-violet-600" />
             <span>ยืม-คืนอุปกรณ์ส่วนกลาง & จองสถานที่</span>
           </h2>
-          <p className="text-xs md:text-sm text-slate-500">
+          <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
             ระบบจองศาลาประชาคม ยืมเต็นท์ โต๊ะ เก้าอี้ เครื่องเสียง สำหรับงานบุญ งานประเพณีของชาวบ้าน
           </p>
         </div>

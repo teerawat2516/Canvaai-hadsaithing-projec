@@ -1,361 +1,556 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
+  X,
   Send,
-  Bot,
-  User,
   Copy,
   Check,
-  X,
-  Brain,
-  Lightbulb,
-  RefreshCw
+  Trash2,
+  Bot,
+  User,
+  TrendingUp,
+  FileText,
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react';
-import { askGeminiAssistant } from '../services/api';
+import {
+  askGeminiAssistant,
+  analyzeCommunityData,
+  draftOfficialDocument
+} from '../services/api';
+import { notifyToast, notifyAlert, notifyConfirm } from '../services/notify';
 
 interface Message {
   id: string;
-  sender: 'user' | 'assistant';
-  text: string;
+  role: 'user' | 'assistant';
+  content: string;
   timestamp: string;
   isError?: boolean;
-  retryPrompt?: string;
 }
 
 interface AiAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  villageContext: Record<string, any>;
   initialPrompt?: string;
+  villageContext: Record<string, any>;
 }
 
 export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   isOpen,
   onClose,
+  initialPrompt = '',
   villageContext,
-  initialPrompt,
 }) => {
+  const [mode, setMode] = useState<'chat' | 'analyze' | 'draft'>('chat');
+  const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
-      sender: 'assistant',
-      text: `สวัสดีครับผู้ใหญ่บ้านและคณะกรรมการหมู่บ้านหาดทรายทอง หมู่ 7 ผมคือ **"ผู้ช่วย AI อัจฉริยะ ประจำหมู่บ้าน"** ขับเคลื่อนด้วย **Gemini AI**
-
-ผมพร้อมให้คำปรึกษาเชิงลึกด้าน:
-1. **การบริหารจัดการชุมชน**: พ.ร.บ. ลักษณะปกครองท้องที่, ระเบียบ มท. ว่าด้วย กม.
-2. **การเงินชุมชน**: บริหารกองทุนหมู่บ้าน, สมุดบัญชีรายรับ-รายจ่าย, สิ่งแวดล้อม
-3. **การพัฒนาโครงสร้างพื้นฐาน**: แผนถนน, ท่อระบายน้ำ, ไฟส่องสว่างโซลาร์เซลล์
-4. **สวัสดิการชุมชน**: การดูแลผู้สูงอายุและผู้ป่วยติดเตียงร่วมกับ อสม.
-5. **การร่างหนังสือราชการและประกาศหอกระจายข่าว**
-
-สามารถพิมพ์คำถาม หรือเลือกหัวข้อกลยุทธ์ด้านล่างได้เลยครับ`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      role: 'assistant',
+      content:
+        'สวัสดีครับ! ผมคือ AI ผู้ช่วยประจำหมู่บ้านหาดทรายทอง หมู่ที่ 7 ยินดีให้คำปรึกษาเรื่องการบริหารงานหมู่บ้าน ระเบียบ กม. สวัสดิการชาวบ้าน งานแจ้งซ่อม การเงินชุมชน และการร่างเอกสารครับ พิมพ์คำถามหรือเลือกหัวข้อด้านล่างได้เลย',
+      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
-
-  const [inputPrompt, setInputPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Analyze mode state
+  const [focusArea, setFocusArea] = useState('');
+  const [analysisResult, setAnalysisResult] = useState('');
+
+  // Quick draft mode state
+  const [draftType, setDraftType] = useState('ประกาศเสียงตามสาย/หอกระจายข่าว');
+  const [draftTopic, setDraftTopic] = useState('');
+  const [draftDetails, setDraftDetails] = useState('');
+  const [draftResult, setDraftResult] = useState('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isSendingRef = useRef(false);
-  const lastInitialPromptRef = useRef<string | undefined>(undefined);
-
-  const quickPrompts = [
-    {
-      title: 'แผนพัฒนาหมู่บ้าน 5 ปี',
-      prompt: 'ช่วยวิเคราะห์สถิติประชากรและเรื่องร้องเรียนของหมู่ 7 เพื่อร่างโครงร่าง "แผนพัฒนาหมู่บ้าน 5 ปี" โดยเน้นการแก้ปัญหาน้ำท่วมขังและไฟส่องทาง',
-    },
-    {
-      title: 'บริหารกองทุนและการเงินชุมชน',
-      prompt: 'แนะนำกลยุทธ์การบริหารจัดการบัญชีการเงินและกองทุนหมู่บ้านให้โปร่งใส มีสภาพคล่อง และสามารถสนับสนุนโครงการพัฒนาชุมชนได้อย่างต่อเนื่อง',
-    },
-    {
-      title: 'โครงการดูแลผู้สูงอายุ',
-      prompt: 'ช่วยออกแบบ "โครงการเยี่ยมบ้านผู้สูงอายุและผู้ป่วยติดเตียงเชิงรุก" โดยบูรณาการ อสม. รพ.สต. และเงินกองทุนหมู่บ้าน',
-    },
-    {
-      title: 'ไกล่เกลี่ยข้อพิพาทชุมชน',
-      prompt: 'ขอคำแนะนำและขั้นตอนการไกล่เกลี่ยข้อพิพาทระหว่างเพื่อนบ้านเรื่องสัตว์เลี้ยงและเสียงรบกวน ตามอำนาจหน้าที่ผู้ใหญ่บ้าน',
-    },
-    {
-      title: 'ของบประมาณ อบต.',
-      prompt: 'ช่วยร่างข้อเสนอโครงการของบอุดหนุนจาก อบต.สร้างนางขาว วงเงิน 120,000 บาท เพื่อติดตั้งไฟถนนโซลาร์เซลล์ซอย 4 ถึง 8',
-    },
-  ];
-
-  const handleSendMessage = useCallback(
-    async (textToSend?: string) => {
-      const prompt = (textToSend ?? inputPrompt).trim();
-      if (!prompt || isSendingRef.current) return;
-
-      isSendingRef.current = true;
-      setIsLoading(true);
-      if (!textToSend) {
-        setInputPrompt('');
-      }
-
-      const userMsg: Message = {
-        id: `u-${Date.now()}`,
-        sender: 'user',
-        text: prompt,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, userMsg]);
-
-      try {
-        const response = await askGeminiAssistant(prompt, villageContext);
-        const isErr = response.status === 'error';
-
-        const assistantMsg: Message = {
-          id: `a-${Date.now()}`,
-          sender: 'assistant',
-          text: response.reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isError: isErr,
-          retryPrompt: isErr ? prompt : undefined,
-        };
-
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err: any) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `err-${Date.now()}`,
-            sender: 'assistant',
-            text: `เกิดข้อผิดพลาดในการเชื่อมต่อ: ${err?.message || 'โปรดลองใหม่อีกครั้ง'}`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isError: true,
-            retryPrompt: prompt,
-          },
-        ]);
-      } finally {
-        isSendingRef.current = false;
-        setIsLoading(false);
-      }
-    },
-    [inputPrompt, villageContext]
-  );
 
   useEffect(() => {
-    if (!isOpen) {
-      lastInitialPromptRef.current = undefined;
-      return;
+    if (isOpen && initialPrompt) {
+      setMode('chat');
+      setInput(initialPrompt);
     }
-    if (initialPrompt && initialPrompt !== lastInitialPromptRef.current) {
-      lastInitialPromptRef.current = initialPrompt;
-      handleSendMessage(initialPrompt);
-    }
-  }, [initialPrompt, isOpen, handleSendMessage]);
+  }, [isOpen, initialPrompt]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const handleCopyText = (id: string, text: string) => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
+  if (!isOpen) return null;
+
+  const quickPrompts = [
+    'สรุปภาพรวมหมู่บ้านและงานเร่งด่วนตอนนี้',
+    'ช่วยวางแผนเก็บค่าขยะและเพิ่มรายรับชุมชน',
+    'แนวทางดูแลผู้สูงอายุและผู้ป่วยติดเตียงในหมู่ 7',
+    'ร่างคำกล่าวเปิดประชุมประจำเดือนหมู่บ้านแบบกระชับ',
+  ];
+
+  const handleSend = async (customPrompt?: string) => {
+    const question = (customPrompt ?? input).trim();
+    if (!question || isLoading) return;
+
+    const userMsg: Message = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: question,
+      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    if (!customPrompt) setInput('');
+    setIsLoading(true);
+
+    const res = await askGeminiAssistant(question, villageContext);
+
+    const aiMsg: Message = {
+      id: `a-${Date.now()}`,
+      role: 'assistant',
+      content: res.reply,
+      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      isError: res.status === 'error',
+    };
+
+    setMessages((prev) => [...prev, aiMsg]);
+    setIsLoading(false);
+  };
+
+  const handleRunAnalysis = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+
+    const openRepairs = Array.isArray(villageContext.openRepairs)
+      ? villageContext.openRepairs
+      : [];
+
+    const res = await analyzeCommunityData({
+      stats: {
+        totalResidents: villageContext.totalResidents || 0,
+        households: villageContext.totalHouseholds || 0,
+        elderlyCount: villageContext.elderlyCount || 0,
+      },
+      openIssues: openRepairs,
+      financeSummary: {
+        totalIncome: villageContext.totalIncome || 0,
+        totalExpense: villageContext.totalExpense || 0,
+        balance: villageContext.fundBalance || 0,
+        wasteFeeCollectionRate: '88%',
+      },
+      focusArea: focusArea.trim() || undefined,
+    });
+
+    setAnalysisResult(res.analysis);
+    if (res.status === 'error') {
+      notifyToast('ไม่สามารถวิเคราะห์ข้อมูลได้ในขณะนี้', 'error');
+    } else {
+      notifyToast('วิเคราะห์ข้อมูลหมู่บ้านเสร็จสมบูรณ์', 'success');
     }
+    setIsLoading(false);
+  };
+
+  const handleQuickDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftTopic.trim()) {
+      notifyAlert('ข้อมูลไม่ครบถ้วน', 'กรุณาระบุหัวข้อหรือเรื่องที่ต้องการร่าง', 'warning');
+      return;
+    }
+    setIsLoading(true);
+    const res = await draftOfficialDocument({
+      docType: draftType,
+      topic: draftTopic.trim(),
+      keyDetails: draftDetails.trim(),
+    });
+    setDraftResult(res.content);
+    if (res.status === 'error') {
+      notifyToast('ไม่สามารถร่างข้อความได้ในขณะนี้', 'error');
+    } else {
+      notifyToast('ร่างข้อความด้วย AI เสร็จเรียบร้อย', 'success');
+    }
+    setIsLoading(false);
+  };
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
     setCopiedId(id);
+    notifyToast('คัดลอกข้อความเรียบร้อยแล้ว', 'success');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (!isOpen) return null;
+  const handleClearChat = async () => {
+    const ok = await notifyConfirm(
+      'ล้างประวัติการสนทนา?',
+      'ข้อความแชททั้งหมดในหน้าต่างนี้จะถูกล้างออก',
+      'ล้างประวัติ',
+      'warning'
+    );
+    if (!ok) return;
+    setMessages([
+      {
+        id: 'welcome-reset',
+        role: 'assistant',
+        content: 'เริ่มบทสนทนาใหม่เรียบร้อยครับ มีเรื่องใดให้ช่วยดูแลเกี่ยวกับหมู่บ้านหาดทรายทอง หมู่ 7 แจ้งได้เลยครับ',
+        timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="glass-card bg-white/95 rounded-3xl shadow-2xl max-w-4xl w-full h-[92dvh] sm:h-[90vh] flex flex-col overflow-hidden border border-white/80">
-        {/* Header */}
-        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-700 text-white flex items-start sm:items-center justify-between gap-2 shrink-0 shadow-sm">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner shrink-0">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
+      <div className="glass-card bg-white rounded-3xl shadow-2xl w-full max-w-3xl h-[90vh] sm:h-[85vh] flex flex-col overflow-hidden border border-slate-200/80">
+        {/* Modal Header */}
+        <div className="px-5 py-4 md:px-7 md:py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 text-white flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base md:text-lg leading-tight">
-                  AI ที่ปรึกษาผู้ใหญ่บ้านและคณะกรรมการชุมชน
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-400 text-emerald-950 font-bold uppercase tracking-wider">
-                  Gemini AI
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-900/60 text-emerald-300 border border-emerald-400/30 hidden sm:inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  ออนไลน์พร้อมตอบ
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-indigo-100 mt-0.5 truncate">
-                วิเคราะห์ข้อมูล วางแผนกลยุทธ์ และให้คำปรึกษาหมู่บ้านหาดทรายทอง หมู่ 7
+              <h3 className="font-bold text-base md:text-lg truncate">
+                AI ผู้ช่วยหมู่บ้านหาดทรายทอง หมู่ 7
+              </h3>
+              <p className="text-xs text-emerald-100/90 truncate">
+                ที่ปรึกษางานปกครอง ชุมชน เอกสาร และวิเคราะห์ข้อมูล
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition shrink-0"
-            aria-label="ปิดหน้าต่าง"
+            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition shrink-0"
+            title="ปิดหน้าต่าง"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Quick Strategy Topics */}
-        <div className="px-4 sm:px-6 py-2.5 bg-slate-50/90 border-b border-slate-200/80 flex items-center gap-2 overflow-x-auto shrink-0">
-          <span className="text-xs font-bold text-slate-500 whitespace-nowrap flex items-center gap-1">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            หัวข้อยอดนิยม:
-          </span>
-          {quickPrompts.map((qp, idx) => (
+        {/* Mode Tabs */}
+        <div className="px-4 py-3 md:px-7 bg-slate-50/90 border-b border-slate-200/70 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              key={idx}
-              type="button"
-              disabled={isLoading}
-              onClick={() => handleSendMessage(qp.prompt)}
-              className="px-3 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50 border border-slate-200/80 text-slate-700 whitespace-nowrap shadow-2xs transition"
-            >
-              {qp.title}
-            </button>
-          ))}
-        </div>
-
-        {/* Conversation Message List */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-2.5 sm:gap-3 max-w-3xl ${
-                msg.sender === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
+              onClick={() => setMode('chat')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                mode === 'chat'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {/* Avatar */}
-              <div
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-2xl shrink-0 flex items-center justify-center text-sm shadow-sm ${
-                  msg.sender === 'user'
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-gradient-to-tr from-violet-600 to-indigo-600 text-white'
-                }`}
-              >
-                {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5" />}
-              </div>
-
-              {/* Message Content */}
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <div
-                  className={`p-3.5 sm:p-4 rounded-3xl text-xs sm:text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words ${
-                    msg.sender === 'user'
-                      ? 'bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-tr-xs'
-                      : msg.isError
-                      ? 'bg-rose-50 border border-rose-200 text-rose-900 rounded-tl-xs'
-                      : 'bg-white border border-slate-200/80 text-slate-800 rounded-tl-xs'
-                  }`}
-                >
-                  {msg.sender === 'assistant' && (
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 text-[11px] text-slate-400">
-                      <div className="flex items-center gap-1.5 font-semibold text-indigo-700">
-                        <Brain className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>คำตอบจาก AI ที่ปรึกษาผู้ใหญ่บ้าน</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText(msg.id, msg.text)}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 transition"
-                        title="คัดลอกข้อความนี้"
-                      >
-                        {copiedId === msg.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {msg.text}
-
-                  {msg.isError && msg.retryPrompt && (
-                    <div className="mt-3 pt-2 border-t border-rose-200/70">
-                      <button
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => handleSendMessage(msg.retryPrompt)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold transition shadow-xs"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>ลองส่งคำถามใหม่อีกครั้ง</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={`text-[10px] text-slate-400 px-2 ${
-                    msg.sender === 'user' ? 'text-right' : 'text-left'
-                  }`}
-                >
-                  {msg.timestamp}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Loading Indicator */}
-          {isLoading && (
-            <div className="flex gap-2.5 sm:gap-3 max-w-xl mr-auto">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shrink-0 flex items-center justify-center animate-pulse">
-                <Brain className="w-5 h-5 animate-spin" />
-              </div>
-              <div className="p-3.5 sm:p-4 rounded-3xl rounded-tl-xs bg-white border border-indigo-200/80 shadow-md text-xs sm:text-sm text-indigo-950 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-indigo-700">
-                  <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
-                  <span>ผู้ช่วย AI กำลังวิเคราะห์ข้อมูลและประมวลผลคำตอบ...</span>
-                </div>
-                <div className="space-y-1 text-slate-500 text-xs">
-                  <p className="animate-pulse">
-                    • ตรวจสอบบริบทข้อมูลหมู่ที่ 7 และระเบียบราชการที่เกี่ยวข้อง...
-                  </p>
-                  <p className="animate-pulse">
-                    • สรุปแนวทางปฏิบัติที่ชัดเจนสำหรับผู้ใหญ่บ้านและชุมชน...
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Bar */}
-        <div className="p-3 sm:p-4 bg-white/90 border-t border-slate-200/80 shrink-0">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={inputPrompt}
-              onChange={(e) => setInputPrompt(e.target.value)}
-              placeholder="พิมพ์คำถาม ปรึกษาข้อกฎหมาย หรือร่างโครงการ..."
-              disabled={isLoading}
-              className="flex-1 min-w-0 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl border border-slate-300 focus:outline-indigo-500 text-base sm:text-sm bg-white shadow-inner"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !inputPrompt.trim()}
-              className="px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/30 transition flex items-center gap-1.5 shrink-0"
-            >
-              <span className="hidden sm:inline">ส่งคำถาม</span>
-              <Send className="w-4 h-4" />
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>ถาม-ตอบผู้ช่วย</span>
             </button>
-          </form>
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 px-1 pt-2 gap-2">
-            <span className="truncate">ขับเคลื่อนโดย Google Gemini AI • หมู่บ้านหาดทรายทอง</span>
-            <span className="hidden sm:inline shrink-0">หมู่ที่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย</span>
+            <button
+              onClick={() => setMode('analyze')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                mode === 'analyze'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>วิเคราะห์ข้อมูลหมู่บ้าน</span>
+            </button>
+            <button
+              onClick={() => setMode('draft')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                mode === 'draft'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>ช่วยร่างประกาศ/เอกสาร</span>
+            </button>
           </div>
+
+          {mode === 'chat' && (
+            <button
+              onClick={handleClearChat}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition flex items-center gap-1"
+              title="ล้างประวัติแชท"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">ล้างแชท</span>
+            </button>
+          )}
         </div>
+
+        {/* Mode 1: Chat */}
+        {mode === 'chat' && (
+          <>
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-slate-50/40">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-1">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed shadow-2xs ${
+                      msg.role === 'user'
+                        ? 'bg-emerald-600 text-white rounded-tr-sm'
+                        : msg.isError
+                        ? 'bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-sm'
+                        : 'bg-white border border-slate-200/80 text-slate-800 rounded-tl-sm'
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                    <div
+                      className={`mt-2 flex items-center justify-between gap-3 text-[11px] ${
+                        msg.role === 'user' ? 'text-emerald-100' : 'text-slate-400'
+                      }`}
+                    >
+                      <span>{msg.timestamp}</span>
+                      {msg.role === 'assistant' && !msg.isError && (
+                        <button
+                          onClick={() => handleCopy(msg.id, msg.content)}
+                          className="inline-flex items-center gap-1 text-slate-500 hover:text-emerald-700 font-semibold transition"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-600">คัดลอกแล้ว</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>คัดลอก</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {msg.role === 'user' && (
+                    <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div className="bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm px-4 py-3 text-xs md:text-sm text-slate-600 flex items-center gap-2.5 shadow-2xs">
+                    <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                    <span>AI กำลังเรียบเรียงคำตอบให้สักครู่...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick Prompts + Input Footer */}
+            <div className="p-4 md:p-5 border-t border-slate-200/80 bg-white space-y-3 shrink-0">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {quickPrompts.map((qp, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => handleSend(qp)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 text-xs font-medium whitespace-nowrap transition border border-transparent hover:border-emerald-200 shrink-0"
+                  >
+                    {qp}
+                  </button>
+                ))}
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSend();
+                }}
+                className="flex items-end gap-2.5"
+              >
+                <textarea
+                  rows={2}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="พิมพ์คำถาม หรือเรื่องที่ต้องการให้ AI ช่วย..."
+                  className="flex-1 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-emerald-500 text-sm resize-none leading-relaxed"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="px-4 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-sm transition flex items-center gap-1.5 shadow-sm shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">ส่ง</span>
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+
+        {/* Mode 2: Strategic Community Analysis */}
+        {mode === 'analyze' && (
+          <div className="flex-1 overflow-y-auto p-5 md:p-7 space-y-5 bg-slate-50/40">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-4">
+              <div>
+                <h4 className="font-bold text-slate-800 text-base">
+                  วิเคราะห์ข้อมูลและวางแผนพัฒนาหมู่บ้านอัตโนมัติ
+                </h4>
+                <p className="text-xs md:text-sm text-slate-500 mt-1 leading-relaxed">
+                  ดึงสถิติประชากร ผู้สูงอายุ งานแจ้งซ่อมค้างอยู่ และบัญชีการเงินปัจจุบันมาสรุปแนวทางปฏิบัติ
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  ประเด็นที่ต้องการเน้นเป็นพิเศษ (ไม่บังคับ)
+                </label>
+                <input
+                  type="text"
+                  value={focusArea}
+                  onChange={(e) => setFocusArea(e.target.value)}
+                  placeholder="เช่น การซ่อมบำรุงไฟส่องสว่าง, แผนดูแลผู้สูงอายุ, การบริหารกองทุนหมู่บ้าน"
+                  className="w-full p-3 rounded-xl border border-slate-200 text-sm"
+                />
+              </div>
+
+              <button
+                onClick={handleRunAnalysis}
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                {isLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <TrendingUp className="w-4 h-4" />
+                )}
+                <span>{isLoading ? 'กำลังวิเคราะห์ข้อมูลหมู่บ้าน...' : 'เริ่มวิเคราะห์ข้อมูลหมู่บ้าน'}</span>
+              </button>
+            </div>
+
+            {analysisResult && (
+              <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="font-bold text-slate-800 text-sm">ผลการวิเคราะห์และข้อเสนอแนะ</span>
+                  <button
+                    onClick={() => handleCopy('analysis', analysisResult)}
+                    className="px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1"
+                  >
+                    {copiedId === 'analysis' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    <span>{copiedId === 'analysis' ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
+                  </button>
+                </div>
+                <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {analysisResult}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mode 3: Quick AI Draft */}
+        {mode === 'draft' && (
+          <div className="flex-1 overflow-y-auto p-5 md:p-7 space-y-5 bg-slate-50/40">
+            <form
+              onSubmit={handleQuickDraft}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-4"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ประเภทเอกสาร / ประกาศ
+                  </label>
+                  <select
+                    value={draftType}
+                    onChange={(e) => setDraftType(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-sm"
+                  >
+                    <option value="ประกาศเสียงตามสาย/หอกระจายข่าว">ประกาศเสียงตามสาย / หอกระจายข่าว</option>
+                    <option value="หนังสือรับรองความประพฤติ/อยู่อาศัย">หนังสือรับรองความประพฤติ / อยู่อาศัย</option>
+                    <option value="หนังสือนัดประชุมหมู่บ้าน/รายงานการประชุม">หนังสือนัดประชุมหมู่บ้าน</option>
+                    <option value="บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาท">บันทึกข้อตกลงไกล่เกลี่ยข้อพิพาท</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    หัวข้อ / เรื่อง *
+                  </label>
+                  <input
+                    type="text"
+                    value={draftTopic}
+                    onChange={(e) => setDraftTopic(e.target.value)}
+                    placeholder="เช่น นัดฉีดวัคซีนพิษสุนัขบ้า หรือ เชิญประชุม กม."
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  รายละเอียดสำคัญ (วัน เวลา สถานที่ ผู้เกี่ยวข้อง)
+                </label>
+                <textarea
+                  rows={3}
+                  value={draftDetails}
+                  onChange={(e) => setDraftDetails(e.target.value)}
+                  placeholder="ระบุข้อมูลสำคัญที่ต้องการให้ AI นำไปเรียบเรียง..."
+                  className="w-full p-3 rounded-xl border border-slate-200 text-sm"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                {isLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span>{isLoading ? 'AI กำลังร่างข้อความ...' : 'ให้ AI ช่วยร่างข้อความ'}</span>
+              </button>
+            </form>
+
+            {draftResult && (
+              <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="font-bold text-slate-800 text-sm">ร่างข้อความจาก AI</span>
+                  <button
+                    onClick={() => handleCopy('draft', draftResult)}
+                    className="px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1"
+                  >
+                    {copiedId === 'draft' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    <span>{copiedId === 'draft' ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
+                  </button>
+                </div>
+                <div className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-sarabun">
+                  {draftResult}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

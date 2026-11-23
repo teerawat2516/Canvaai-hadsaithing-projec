@@ -20,8 +20,12 @@ async function postJsonWithRetry<T>(
   url: string,
   payload: unknown,
   retries = 1,
-  timeoutMs = 45000
+  timeoutMs = 55000
 ): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('อุปกรณ์ไม่ได้เชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบสัญญาณแล้วลองใหม่');
+  }
+
   let lastErr: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {

@@ -14,7 +14,8 @@ import {
   X,
   MapPin,
   Phone,
-  Sparkles
+  Sparkles,
+  FileDown
 } from 'lucide-react';
 import { UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
@@ -33,6 +34,7 @@ interface SidebarProps {
   activeTab: TabKey;
   onSelectTab: (tab: TabKey) => void;
   onOpenAiAssistant: () => void;
+  onOpenExportPrint: () => void;
   isOpen: boolean;
   onClose: () => void;
   currentRole: UserRole;
@@ -45,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
   onOpenAiAssistant,
+  onOpenExportPrint,
   isOpen,
   onClose,
   currentRole,
@@ -161,7 +164,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             โหมดใช้งาน:
           </span>
           <button
-            onClick={onToggleRole}
+            onClick={() => {
+              onToggleRole();
+              onClose();
+            }}
             className={`px-2.5 py-1 rounded-full text-xs font-bold shadow-xs transition flex items-center gap-1.5 ${
               currentRole === 'admin'
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -225,7 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
 
-          <div className="pt-2">
+          <div className="pt-2 space-y-2">
             <button
               onClick={() => {
                 onOpenAiAssistant();
@@ -242,6 +248,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 text-white font-bold shrink-0">
                 ถาม-ตอบ
               </span>
+            </button>
+
+            <button
+              onClick={() => {
+                onOpenExportPrint();
+                onClose();
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm text-slate-700 bg-white/90 hover:bg-white border border-slate-200/90 shadow-2xs transition-all text-left"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <FileDown className="w-4 h-4" />
+                </div>
+                <span className="truncate">ส่งออก PDF / CSV / พิมพ์</span>
+              </div>
             </button>
           </div>
         </nav>

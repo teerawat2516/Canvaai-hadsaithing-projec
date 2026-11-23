@@ -69,7 +69,7 @@ export const FirebaseStatusIndicator: React.FC<FirebaseStatusIndicatorProps> = (
             <span className="animate-spin relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
           </span>
         )}
-        <span className="hidden md:inline text-[11px] font-bold whitespace-nowrap">
+        <span className="hidden xl:inline text-[11px] font-bold whitespace-nowrap">
           {statusLabel}
         </span>
       </button>

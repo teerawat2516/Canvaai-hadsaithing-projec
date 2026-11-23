@@ -13,6 +13,7 @@ import { OfficialDocsView } from './components/OfficialDocsView';
 import { PrintableReceipt } from './components/PrintableReceipt';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AiAssistantModal } from './components/AiAssistantModal';
+import { ExportPrintModal } from './components/ExportPrintModal';
 import { testFirebaseConnection } from './services/firebase';
 import type { FirebaseConnectionStatus } from './components/FirebaseStatusIndicator';
 import { notifyToast } from './services/notify';
@@ -120,6 +121,9 @@ export default function App() {
   // AI Assistant Modal
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
+
+  // Export PDF / CSV / Print Modal
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleOpenAiAssistant = useCallback((prompt = '') => {
     setAiInitialPrompt(prompt);
@@ -520,12 +524,13 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden text-slate-800 antialiased">
+    <div className="flex h-screen overflow-hidden text-slate-800 antialiased print-shell">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => setActiveTab(tab)}
         onOpenAiAssistant={() => handleOpenAiAssistant()}
+        onOpenExportPrint={() => setIsExportModalOpen(true)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         currentRole={currentRole}
@@ -535,19 +540,38 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0 print-shell">
         <Header
           currentRole={currentRole}
           onToggleRole={handleToggleRole}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onOpenAiAssistant={() => handleOpenAiAssistant()}
+          onOpenExportPrint={() => setIsExportModalOpen(true)}
           activeTabTitle={tabTitles[activeTab]}
           firebaseStatus={firebaseStatus}
           onRetryFirebase={checkConnection}
         />
 
+        {/* Formal Print Header (visible only when printing app page) */}
+        <div className="print-only px-6 pt-4 pb-3 border-b-2 border-slate-800 mb-4 font-sarabun">
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">
+                {VILLAGE_META.villageName} {VILLAGE_META.moo}
+              </h1>
+              <p className="text-xs text-slate-600">
+                {VILLAGE_META.subdistrict} {VILLAGE_META.district} {VILLAGE_META.province} {VILLAGE_META.zipCode}
+              </p>
+            </div>
+            <div className="text-right text-xs text-slate-700">
+              <div className="font-bold">{tabTitles[activeTab]}</div>
+              <div>พิมพ์เมื่อ: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+          </div>
+        </div>
+
         {/* Scrollable View Container */}
-        <div className="flex-1 overflow-y-auto px-5 py-7 md:px-10 md:py-9">
+        <div className="flex-1 overflow-y-auto px-5 py-7 md:px-10 md:py-9 print-scroll">
           {activeTab === 'dashboard' && (
             <DashboardView
               residents={residents}
@@ -648,6 +672,21 @@ export default function App() {
         onClose={() => setIsAiModalOpen(false)}
         initialPrompt={aiInitialPrompt}
         villageContext={villageContext}
+      />
+
+      {/* Export PDF / CSV / Print Modal */}
+      <ExportPrintModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        activeTab={activeTab}
+        data={{
+          residents,
+          fundTransactions,
+          repairTickets,
+          bookings,
+          announcements,
+          leaders,
+        }}
       />
     </div>
   );

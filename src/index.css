@@ -86,9 +86,27 @@
 }
 
 @media print {
-  body {
+  html,
+  body,
+  #root {
     background: white !important;
     color: black !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .print-shell,
+  .print-scroll {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .glass-card,
+  .glass-panel {
+    background: white !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
   }
   .no-print {
     display: none !important;

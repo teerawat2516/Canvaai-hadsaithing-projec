@@ -14,7 +14,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import {
-  askGeminiAssistant,
+  askGeminiAssistantStream,
   analyzeCommunityData,
   draftOfficialDocument
 } from '../services/api';
@@ -91,28 +91,54 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     const question = (customPrompt ?? input).trim();
     if (!question || isLoading) return;
 
+    const nowTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
       id: `u-${Date.now()}`,
       role: 'user',
       content: question,
-      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: nowTime,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const aiMsgId = `a-${Date.now() + 1}`;
+    const placeholderMsg: Message = {
+      id: aiMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: nowTime,
+    };
+
+    const history = messages
+      .filter((m) => m.id !== 'welcome' && m.id !== 'welcome-reset' && !m.isError && m.content.trim())
+      .slice(-4)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    setMessages((prev) => [...prev, userMsg, placeholderMsg]);
     if (!customPrompt) setInput('');
     setIsLoading(true);
 
-    const res = await askGeminiAssistant(question, villageContext);
+    const res = await askGeminiAssistantStream(
+      question,
+      villageContext,
+      history,
+      (accumulated) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m))
+        );
+      }
+    );
 
-    const aiMsg: Message = {
-      id: `a-${Date.now()}`,
-      role: 'assistant',
-      content: res.reply,
-      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-      isError: res.status === 'error',
-    };
-
-    setMessages((prev) => [...prev, aiMsg]);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === aiMsgId
+          ? {
+              ...m,
+              content: res.reply,
+              isError: res.status === 'error',
+              timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+            }
+          : m
+      )
+    );
     setIsLoading(false);
   };
 
@@ -277,7 +303,12 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
         {mode === 'chat' && (
           <>
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-slate-50/40">
-              {messages.map((msg) => (
+              {messages.map((msg, idx) => {
+                if (msg.role === 'assistant' && !msg.content && isLoading) {
+                  return null;
+                }
+                const prevUserMsg = idx > 0 ? messages[idx - 1] : null;
+                return (
                 <div
                   key={msg.id}
                   className={`flex gap-3 ${
@@ -306,7 +337,18 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                       }`}
                     >
                       <span>{msg.timestamp}</span>
-                      {msg.role === 'assistant' && !msg.isError && (
+                      {msg.role === 'assistant' && msg.isError && prevUserMsg?.role === 'user' && (
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => handleSend(prevUserMsg.content)}
+                          className="inline-flex items-center gap-1 text-rose-700 hover:text-rose-900 font-bold transition"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>ลองใหม่อีกครั้ง</span>
+                        </button>
+                      )}
+                      {msg.role === 'assistant' && !msg.isError && msg.content && (
                         <button
                           onClick={() => handleCopy(msg.id, msg.content)}
                           className="inline-flex items-center gap-1 text-slate-500 hover:text-emerald-700 font-semibold transition"
@@ -333,9 +375,10 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
-              {isLoading && (
+              {isLoading && !messages[messages.length - 1]?.content && (
                 <div className="flex gap-3 justify-start">
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <Bot className="w-4 h-4" />
@@ -384,7 +427,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                     }
                   }}
                   placeholder="พิมพ์คำถาม หรือเรื่องที่ต้องการให้ AI ช่วย..."
-                  className="flex-1 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-emerald-500 text-sm resize-none leading-relaxed"
+                  className="flex-1 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-emerald-500 text-base sm:text-sm resize-none leading-relaxed"
                 />
                 <button
                   type="submit"

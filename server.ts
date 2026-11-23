@@ -52,18 +52,13 @@ const getGeminiClient = () => {
 };
 
 // Village management system instruction
-const VILLAGE_SYSTEM_INSTRUCTION = `คุณคือ "ผู้ช่วยปัญญาประดิษฐ์อัจฉริยะ ประจำหมู่บ้านหาดทรายทอง หมู่ที่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย"
+const VILLAGE_SYSTEM_INSTRUCTION = `คุณคือ "ผู้ช่วยปัญญาประดิษฐ์ ประจำหมู่บ้านหาดทรายทอง หมู่ที่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย"
 บทบาทของคุณคือเป็นที่ปรึกษาด้านการบริหารจัดการชุมชน ให้คำปรึกษาแก่ผู้ใหญ่บ้าน คณะกรรมการหมู่บ้าน (กม.) สมาชิก อสม. และชาวบ้าน
 
 ข้อกำหนดการตอบ:
-1. ใช้ภาษาไทยที่ถูกต้อง สุภาพ ชัดเจน กระชับ เข้าใจง่าย เป็นทางการเมื่อเกี่ยวกับระเบียบ/ราชการ และเป็นกันเองเมื่อให้คำแนะนำชาวบ้าน
-2. รอบรู้เรื่อง:
-   - ระเบียบกระทรวงมหาดไทยว่าด้วยการดำเนินงานของคณะกรรมการหมู่บ้าน (กม.)
-   - พ.ร.บ. ลักษณะปกครองท้องที่ พ.ศ. 2457 และที่แก้ไขเพิ่มเติม
-   - กองทุนหมู่บ้าน, การจัดเก็บขยะและค่าบำรุงรักษาชุมชน
-   - สวัสดิการผู้สูงอายุ, ผู้พิการ, การพัฒนาโครงสร้างพื้นฐาน (ไฟส่องสว่าง, ถนน, ท่อระบายน้ำ)
-   - การเขียนหนังสือราชการหมู่บ้าน, ประกาศหอกระจายข่าว, และการไกล่เกลี่ยข้อพิพาทชุมชน
-3. สรุปประเด็นเป็นข้อ ๆ อ่านง่ายบนมือถือ ระบุลำดับความสำคัญ แนวทางปฏิบัติที่ทำได้จริง และหน่วยงานที่ต้องประสานงานอย่างชัดเจน`;
+1. ใช้ภาษาไทยที่ถูกต้อง สุภาพ ชัดเจน กระชับ เข้าใจง่าย อ่านสบายตาบนมือถือและคอมพิวเตอร์
+2. รอบรู้เรื่องระเบียบ กม., พ.ร.บ.ลักษณะปกครองท้องที่, กองทุนหมู่บ้าน, ค่าขยะ, สวัสดิการผู้สูงอายุ/เปราะบาง, งานซ่อมแซมสาธารณูปโภค, หนังสือราชการหมู่บ้าน และประกาศเสียงตามสาย
+3. สำหรับการถาม-ตอบทั่วไป ให้สรุปคำตอบเป็นข้อๆ สั้นกระชับ ชัดเจน (ประมาณ 4-10 บรรทัด) พร้อมแนวทางปฏิบัติที่ใช้ได้จริง ยกเว้นเมื่อผู้ใช้ขอให้ร่างเอกสารหรืออธิบายเชิงลึก`;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -126,6 +121,12 @@ function mapGeminiError(error: any): { status: number; message: string } {
       message: 'ขณะนี้มีการใช้งาน AI เกินโควตาชั่วคราว กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
     };
   }
+  if (/503|UNAVAILABLE|high demand|overloaded/i.test(raw)) {
+    return {
+      status: 503,
+      message: 'ขณะนี้บริการ AI มีผู้ใช้งานจำนวนมากชั่วคราว กรุณากดลองใหม่อีกครั้งในอีกสักครู่',
+    };
+  }
   if (/timeout/i.test(raw)) {
     return {
       status: 504,
@@ -134,20 +135,29 @@ function mapGeminiError(error: any): { status: number; message: string } {
   }
   return {
     status: 500,
-    message: raw || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API',
+    message: 'เกิดข้อผิดพลาดในการเชื่อมต่อบริการ AI ชั่วคราว กรุณาลองใหม่อีกครั้ง',
   };
 }
 
-// Resilient generation helper using active models from SDK guidelines
+// Resilient generation helper using active models from SDK guidelines with retry backoff
 async function generateVillageAI(
   ai: GoogleGenAI,
   prompt: string,
   systemInstruction?: string
 ): Promise<string> {
-  const attempts: Array<{ model: string; timeoutMs: number; config?: Record<string, any> }> = [
+  const attempts: Array<{ model: string; timeoutMs: number; delayMs: number; config?: Record<string, any> }> = [
+    {
+      model: 'gemini-3.1-flash-lite',
+      timeoutMs: 14000,
+      delayMs: 500,
+      config: {
+        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+      },
+    },
     {
       model: 'gemini-4-hydrogen',
       timeoutMs: 18000,
+      delayMs: 1000,
       config: {
         systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -155,9 +165,19 @@ async function generateVillageAI(
     },
     {
       model: 'gemini-3.1-flash-lite',
-      timeoutMs: 16000,
+      timeoutMs: 15000,
+      delayMs: 1200,
       config: {
         systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+      },
+    },
+    {
+      model: 'gemini-4-hydrogen',
+      timeoutMs: 18000,
+      delayMs: 0,
+      config: {
+        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
     },
   ];
@@ -182,26 +202,50 @@ async function generateVillageAI(
     } catch (err: any) {
       console.warn(`Model ${attempt.model} invocation issue, trying next fallback:`, err?.message || err);
       lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (attempt.delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, attempt.delayMs));
+      }
     }
   }
 
   throw lastError || new Error('All Gemini models encountered an error');
 }
 
-// API 1: Assistant Chat
+function buildContextualPrompt(
+  prompt: string,
+  context?: unknown,
+  history?: Array<{ role: string; content: string }>
+): string {
+  const contextJson = compactContext(context);
+  const recentHistory = Array.isArray(history)
+    ? history
+        .slice(-4)
+        .filter((h) => h && typeof h.content === 'string' && h.content.trim())
+        .map((h) => `${h.role === 'user' ? 'ผู้ใช้' : 'ผู้ช่วย'}: ${h.content.trim().slice(0, 400)}`)
+        .join('\n')
+    : '';
+
+  const parts: string[] = [];
+  if (contextJson) {
+    parts.push(`บริบทข้อมูลหมู่บ้านหาดทรายทอง หมู่ 7:\n${contextJson}`);
+  }
+  if (recentHistory) {
+    parts.push(`บทสนทนาก่อนหน้า:\n${recentHistory}`);
+  }
+  parts.push(`คำถามหรือภารกิจล่าสุด:\n${prompt.trim()}`);
+  return parts.join('\n\n');
+}
+
+// API 1: Assistant Chat (JSON)
 app.post('/api/gemini/chat', async (req, res) => {
   try {
-    const { prompt, context } = req.body || {};
+    const { prompt, context, history } = req.body || {};
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'กรุณาระบุคำถามที่ต้องการปรึกษา AI', status: 'error' });
     }
 
     const ai = getGeminiClient();
-    const contextJson = compactContext(context);
-    const contextualPrompt = contextJson
-      ? `บริบทข้อมูลหมู่บ้านหาดทรายทอง หมู่ 7:\n${contextJson}\n\nคำถามหรือภารกิจ:\n${prompt.trim()}`
-      : prompt.trim();
+    const contextualPrompt = buildContextualPrompt(prompt, context, history);
 
     const reply = await generateVillageAI(ai, contextualPrompt);
     res.json({ reply: reply || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้', status: 'success' });
@@ -212,6 +256,110 @@ app.post('/api/gemini/chat', async (req, res) => {
       error: mapped.message,
       status: 'error',
     });
+  }
+});
+
+// API 1b: Assistant Chat (SSE Streaming for fast, timeout-resilient mobile & desktop replies)
+app.post('/api/gemini/chat-stream', async (req, res) => {
+  const { prompt, context, history } = req.body || {};
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุคำถามที่ต้องการปรึกษา AI', status: 'error' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  let clientClosed = false;
+  res.on('close', () => {
+    if (!res.writableFinished) {
+      clientClosed = true;
+    }
+  });
+
+  try {
+    const ai = getGeminiClient();
+    const contextualPrompt = buildContextualPrompt(prompt, context, history);
+
+    const attempts: Array<{ model: string; delayMs: number; config: Record<string, any> }> = [
+      {
+        model: 'gemini-3.1-flash-lite',
+        delayMs: 500,
+        config: { systemInstruction: VILLAGE_SYSTEM_INSTRUCTION },
+      },
+      {
+        model: 'gemini-4-hydrogen',
+        delayMs: 1000,
+        config: {
+          systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        },
+      },
+      {
+        model: 'gemini-3.1-flash-lite',
+        delayMs: 1000,
+        config: { systemInstruction: VILLAGE_SYSTEM_INSTRUCTION },
+      },
+      {
+        model: 'gemini-4-hydrogen',
+        delayMs: 0,
+        config: {
+          systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        },
+      },
+    ];
+
+    let emittedAny = false;
+    let lastError: any = null;
+
+    for (const attempt of attempts) {
+      if (clientClosed) break;
+      try {
+        const stream = await ai.models.generateContentStream({
+          model: attempt.model,
+          contents: contextualPrompt,
+          config: attempt.config,
+        });
+
+        for await (const chunk of stream) {
+          if (clientClosed) break;
+          const text = chunk.text;
+          if (text) {
+            emittedAny = true;
+            res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          }
+        }
+
+        if (emittedAny) {
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Stream model ${attempt.model} issue:`, err?.message || err);
+        lastError = err;
+        if (emittedAny) break;
+        if (attempt.delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, attempt.delayMs));
+        }
+      }
+    }
+
+    if (!emittedAny && !clientClosed) {
+      const mapped = mapGeminiError(lastError || new Error('ไม่สามารถสร้างคำตอบได้'));
+      res.write(`data: ${JSON.stringify({ error: mapped.message })}\n\n`);
+    } else if (!clientClosed) {
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    }
+    res.end();
+  } catch (error: any) {
+    console.error('Error in /api/gemini/chat-stream:', error);
+    if (!clientClosed) {
+      const mapped = mapGeminiError(error);
+      res.write(`data: ${JSON.stringify({ error: mapped.message })}\n\n`);
+      res.end();
+    }
   }
 });
 

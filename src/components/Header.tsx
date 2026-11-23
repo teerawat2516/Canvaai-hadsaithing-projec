@@ -45,12 +45,12 @@ export const Header: React.FC<HeaderProps> = ({
   const thaiFormattedDate = `วัน${['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][today.getDay()]}ที่ ${thaiDay} ${thaiMonth} พ.ศ. ${thaiYear}`;
 
   return (
-    <header className="glass-card border-b border-slate-200/80 px-4 md:px-7 xl:px-8 py-3.5 md:py-4 flex flex-col gap-2 z-20 no-print sticky top-0 shadow-2xs backdrop-blur-md">
+    <header className="glass-card border-b border-rose-100/80 px-4 md:px-7 xl:px-8 py-3.5 md:py-4 flex flex-col gap-2 z-20 no-print sticky top-0 shadow-2xs backdrop-blur-md">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0">
           <button
             onClick={onToggleSidebar}
-            className="p-2 rounded-xl text-slate-600 hover:bg-slate-100/80 transition md:hidden shrink-0"
+            className="p-2 rounded-xl text-slate-600 hover:bg-rose-50/80 transition md:hidden shrink-0"
             title="เปิด/ปิด เมนู"
             aria-label="เปิด/ปิด เมนู"
           >
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Export PDF / CSV / Print Mode Button */}
           <button
             onClick={onOpenExportPrint}
-            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white/85 hover:bg-white hover:text-slate-900 border border-slate-200 shadow-2xs transition"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white/85 hover:bg-white hover:text-slate-900 border border-rose-100 shadow-2xs transition"
             title="ส่งออก PDF / CSV หรือพิมพ์หน้าแอพ"
             aria-label="ส่งออก PDF / CSV หรือพิมพ์หน้าแอพ"
           >
@@ -131,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobile & Tablet Full-Width Date Row (never covered or squeezed by Firebase status or buttons) */}
-      <div className="flex xl:hidden items-center justify-between gap-2 pt-1.5 border-t border-slate-100/90 text-xs text-slate-500">
+      <div className="flex xl:hidden items-center justify-between gap-2 pt-1.5 border-t border-rose-100/80 text-xs text-slate-500">
         <div className="flex items-center gap-1.5 min-w-0">
           <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span className="truncate">{thaiFormattedDate}</span>

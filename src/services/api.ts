@@ -100,10 +100,15 @@ async function postJsonWithRetry<T>(
 
 export async function askGeminiAssistant(
   prompt: string,
-  context?: Record<string, any>
+  context?: Record<string, any>,
+  history?: Array<{ role: string; content: string }>
 ): Promise<GeminiChatResponse> {
   try {
-    return await postJsonWithRetry<GeminiChatResponse>('/api/gemini/chat', { prompt, context });
+    return await postJsonWithRetry<GeminiChatResponse>('/api/gemini/chat', {
+      prompt,
+      context,
+      history,
+    });
   } catch (err: any) {
     console.error('Failed to call Gemini Assistant:', err);
     return {
@@ -111,6 +116,106 @@ export async function askGeminiAssistant(
       status: 'error',
       error: err.message,
     };
+  }
+}
+
+export async function askGeminiAssistantStream(
+  prompt: string,
+  context: Record<string, any> | undefined,
+  history: Array<{ role: string; content: string }> | undefined,
+  onChunk: (accumulatedText: string) => void
+): Promise<GeminiChatResponse> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return {
+      reply: 'อุปกรณ์ไม่ได้เชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบสัญญาณแล้วลองใหม่',
+      status: 'error',
+      error: 'offline',
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45000);
+  let accumulated = '';
+
+  try {
+    const res = await fetch('/api/gemini/chat-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ prompt, context, history }),
+      signal: controller.signal,
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+
+    if (!res.ok || !contentType.includes('text/event-stream') || !res.body) {
+      clearTimeout(timer);
+      return await askGeminiAssistant(prompt, context, history);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let streamError: string | null = null;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (value) {
+        buffer += decoder.decode(value, { stream: !done });
+      } else if (done) {
+        buffer += decoder.decode();
+      }
+
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = done ? '' : events.pop() || '';
+
+      for (const evt of events) {
+        for (const line of evt.split(/\r?\n/)) {
+          if (!line.startsWith('data:')) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+          try {
+            const parsed = JSON.parse(jsonStr) as {
+              text?: string;
+              error?: string;
+              done?: boolean;
+            };
+            if (parsed.error) {
+              streamError = parsed.error;
+            } else if (parsed.text) {
+              accumulated += parsed.text;
+              onChunk(accumulated);
+            }
+          } catch {
+            // Ignore malformed partial frame
+          }
+        }
+      }
+
+      if (done) break;
+    }
+
+    clearTimeout(timer);
+
+    if (accumulated.trim()) {
+      return { reply: accumulated, status: 'success' };
+    }
+
+    if (streamError) {
+      return {
+        reply: `เกิดข้อผิดพลาดในการประมวลผลด้วย AI: ${streamError}`,
+        status: 'error',
+        error: streamError,
+      };
+    }
+
+    return await askGeminiAssistant(prompt, context, history);
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (accumulated.trim()) {
+      return { reply: accumulated, status: 'success' };
+    }
+    return await askGeminiAssistant(prompt, context, history);
   }
 }
 

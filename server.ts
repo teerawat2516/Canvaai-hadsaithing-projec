@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
@@ -30,82 +31,144 @@ const getGeminiClient = () => {
   });
 };
 
-// Village management system system prompt for High Thinking Gemini 4 Argon
+// Village management system instruction
 const VILLAGE_SYSTEM_INSTRUCTION = `คุณคือ "ผู้ช่วยปัญญาประดิษฐ์อัจฉริยะ ประจำหมู่บ้านหาดทรายทอง หมู่ที่ 7 ต.สร้างนางขาว อ.โพนพิสัย จ.หนองคาย"
-บทบาทของคุณคือเป็นที่ปรึกษาอาวุโสด้านการบริหารจัดการชุมชน ให้คำปรึกษาแก่ผู้ใหญ่บ้าน คณะกรรมการหมู่บ้าน (กม.) สมาชิก อสม. และชาวบ้าน
+บทบาทของคุณคือเป็นที่ปรึกษาด้านการบริหารจัดการชุมชน ให้คำปรึกษาแก่ผู้ใหญ่บ้าน คณะกรรมการหมู่บ้าน (กม.) สมาชิก อสม. และชาวบ้าน
 
 ข้อกำหนดการตอบ:
-1. ใช้ภาษาไทยที่ถูกต้อง สุภาพ ชัดเจน เข้าใจง่าย มีความเป็นทางการเมื่อเกี่ยวกับระเบียบ/ราชการ และเป็นกันเองเมื่อให้คำแนะนำชาวบ้าน
+1. ใช้ภาษาไทยที่ถูกต้อง สุภาพ ชัดเจน กระชับ เข้าใจง่าย เป็นทางการเมื่อเกี่ยวกับระเบียบ/ราชการ และเป็นกันเองเมื่อให้คำแนะนำชาวบ้าน
 2. รอบรู้เรื่อง:
    - ระเบียบกระทรวงมหาดไทยว่าด้วยการดำเนินงานของคณะกรรมการหมู่บ้าน (กม.)
    - พ.ร.บ. ลักษณะปกครองท้องที่ พ.ศ. 2457 และที่แก้ไขเพิ่มเติม
    - กองทุนหมู่บ้าน, การจัดเก็บขยะและค่าบำรุงรักษาชุมชน
    - สวัสดิการผู้สูงอายุ, ผู้พิการ, การพัฒนาโครงสร้างพื้นฐาน (ไฟส่องสว่าง, ถนน, ท่อระบายน้ำ)
    - การเขียนหนังสือราชการหมู่บ้าน, ประกาศหอกระจายข่าว, และการไกล่เกลี่ยข้อพิพาทชุมชน
-3. เมื่อวิเคราะห์ปัญหาหรือวางแผน ให้ใช้ตรรกะเชิงลึก (Deep Reasoning) แสดงขั้นตอนการคิด วินิจฉัยรากของปัญหา ลำดับความสำคัญ และแนวทางปฏิบัติที่ชุมชนทำได้จริง พร้อมกรอบเวลาและหน่วยงานที่ต้องประสานงาน`;
+3. สรุปประเด็นเป็นข้อ ๆ อ่านง่ายบนมือถือ ระบุลำดับความสำคัญ แนวทางปฏิบัติที่ทำได้จริง และหน่วยงานที่ต้องประสานงานอย่างชัดเจน`;
 
-// Resilient generation helper with high-speed models (gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.8-flash)
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Request timeout (${ms}ms) on ${label}`));
+    }, ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+// Build a compact, safe context string so mobile/large village payloads remain fast
+function compactContext(context: any): string {
+  if (!context || typeof context !== 'object') return '';
+  try {
+    const summary = {
+      village: context.village?.villageName || 'หมู่บ้านหาดทรายทอง หมู่ 7',
+      headman: context.village?.headmanName || 'นายอำนาจ พันนาขา',
+      totalResidents: context.totalResidents ?? 0,
+      maleCount: context.maleCount ?? 0,
+      femaleCount: context.femaleCount ?? 0,
+      totalHouseholds: context.totalHouseholds ?? 0,
+      elderlyCount: context.elderlyCount ?? 0,
+      vulnerableCount: context.vulnerableCount ?? 0,
+      openRepairs: Array.isArray(context.openRepairs) ? context.openRepairs.slice(0, 8) : [],
+      recentBookingsCount: Array.isArray(context.recentBookings) ? context.recentBookings.length : 0,
+      leaders: Array.isArray(context.leaders) ? context.leaders.slice(0, 5) : [],
+    };
+    return JSON.stringify(summary);
+  } catch {
+    return '';
+  }
+}
+
+// Resilient generation helper using active models from SDK guidelines
 async function generateVillageAI(
   ai: GoogleGenAI,
   prompt: string,
-  systemInstruction?: string,
-  extraConfig?: any
+  systemInstruction?: string
 ): Promise<string> {
-  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+  const attempts: Array<{ model: string; config?: Record<string, any> }> = [
+    {
+      model: 'gemini-4-hydrogen',
+      config: {
+        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      },
+    },
+    {
+      model: 'gemini-3.1-flash-lite',
+      config: {
+        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+      },
+    },
+    {
+      model: 'gemini-4-hydrogen',
+      config: {
+        systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
+      },
+    },
+  ];
+
   let lastError: any = null;
 
-  for (const model of models) {
+  for (const attempt of attempts) {
     try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction: systemInstruction || VILLAGE_SYSTEM_INSTRUCTION,
-          ...extraConfig,
-        },
-      });
+      const response = await withTimeout(
+        ai.models.generateContent({
+          model: attempt.model,
+          contents: prompt,
+          config: attempt.config,
+        }),
+        22000,
+        attempt.model
+      );
 
       if (response && response.text) {
         return response.text;
       }
     } catch (err: any) {
-      console.warn(`Model ${model} invocation issue, trying next fallback:`, err?.message || err);
+      console.warn(`Model ${attempt.model} invocation issue, trying next fallback:`, err?.message || err);
       lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
   }
 
   throw lastError || new Error('All Gemini models encountered an error');
 }
 
-// API 1: Thinking Assistant Chat
+// API 1: Assistant Chat
 app.post('/api/gemini/chat', async (req, res) => {
   try {
-    const { prompt, context } = req.body;
-    if (!prompt) {
-      return res.status(400).json({ error: 'Missing prompt' });
+    const { prompt, context } = req.body || {};
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ error: 'กรุณาระบุคำถามที่ต้องการปรึกษา AI', status: 'error' });
     }
 
     const ai = getGeminiClient();
-    const contextualPrompt = context
-      ? `บริบทข้อมูลหมู่บ้านหาดทรายทอง หมู่ 7:\n${JSON.stringify(context, null, 2)}\n\nคำถามหรือภารกิจ:\n${prompt}`
-      : prompt;
+    const contextJson = compactContext(context);
+    const contextualPrompt = contextJson
+      ? `บริบทข้อมูลหมู่บ้านหาดทรายทอง หมู่ 7:\n${contextJson}\n\nคำถามหรือภารกิจ:\n${prompt.trim()}`
+      : prompt.trim();
 
     const reply = await generateVillageAI(ai, contextualPrompt);
     res.json({ reply: reply || 'ขออภัย ไม่สามารถสร้างคำตอบได้ในขณะนี้', status: 'success' });
   } catch (error: any) {
     console.error('Error in /api/gemini/chat:', error);
     res.status(500).json({
-      error: error?.message || 'Internal server error while communicating with Gemini API',
+      error: error?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API',
       status: 'error',
     });
   }
 });
 
-// API 2: High Thinking Official Document & Broadcast Drafter
+// API 2: Official Document & Broadcast Drafter
 app.post('/api/gemini/draft-doc', async (req, res) => {
   try {
-    const { docType, topic, recipient, keyDetails, applicantName, houseNo } = req.body;
+    const { docType, topic, recipient, keyDetails, applicantName, houseNo } = req.body || {};
     const ai = getGeminiClient();
 
     const prompt = `จงร่างเอกสารประเภท: "${docType || 'เอกสารราชการ'}"
@@ -140,10 +203,10 @@ ${keyDetails || 'ไม่มีรายละเอียดเพิ่มเ
   }
 });
 
-// API 3: High Thinking Community Analysis & Strategy Plan
+// API 3: Community Analysis & Strategy Plan
 app.post('/api/gemini/analyze-community', async (req, res) => {
   try {
-    const { stats, openIssues, financeSummary, focusArea } = req.body;
+    const { stats, openIssues, financeSummary, focusArea } = req.body || {};
     const ai = getGeminiClient();
 
     const prompt = `ทำการวิเคราะห์เชิงลึก (Deep Strategic Analysis) สำหรับหมู่บ้านหาดทรายทอง หมู่ที่ 7
@@ -177,8 +240,30 @@ app.post('/api/gemini/analyze-community', async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// Admin passcode verification endpoint
+app.post('/api/auth/verify-admin', (req, res) => {
+  const submitted = typeof req.body?.password === 'string' ? req.body.password.trim() : '';
+  const expected = (process.env.ADMIN_PASSCODE || '501107').trim();
+
+  if (!submitted) {
+    return res.status(400).json({ ok: false, error: 'กรุณากรอกรหัสผ่านผู้ดูแลระบบ' });
+  }
+
+  const submittedBuf = Buffer.from(submitted, 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  const isMatch =
+    submittedBuf.length === expectedBuf.length &&
+    crypto.timingSafeEqual(submittedBuf, expectedBuf);
+
+  if (!isMatch) {
+    return res.status(401).json({ ok: false, error: 'รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง' });
+  }
+
+  return res.json({ ok: true });
 });
 
 // Setup Vite or static serving
@@ -192,7 +277,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }

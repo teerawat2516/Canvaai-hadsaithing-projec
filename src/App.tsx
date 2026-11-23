@@ -12,6 +12,7 @@ import { NewsView } from './components/NewsView';
 import { OfficialDocsView } from './components/OfficialDocsView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { PrintableReceipt } from './components/PrintableReceipt';
+import { AdminLoginModal } from './components/AdminLoginModal';
 import { FirebaseConnectionStatus } from './components/FirebaseStatusIndicator';
 import { testFirebaseConnection } from './services/firebase';
 import {
@@ -57,10 +58,11 @@ import {
 } from './data/initialData';
 
 export default function App() {
-  // Role State
+  // Role State (defaults to resident; admin mode requires passcode verification)
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    return (localStorage.getItem('village_role') as UserRole) || 'admin';
+    return sessionStorage.getItem('village_admin_authenticated') === 'true' ? 'admin' : 'resident';
   });
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
@@ -276,16 +278,20 @@ export default function App() {
   }, [leaders]);
 
   const handleToggleRole = () => {
-    setCurrentRole((prev) => {
-      const nextRole = prev === 'admin' ? 'resident' : 'admin';
-      showToast(
-        nextRole === 'admin'
-          ? 'สลับเป็นโหมด: ผู้ดูแลระบบ (Admin / ผู้ใหญ่บ้าน)'
-          : 'สลับเป็นโหมด: ชาวบ้าน / ลูกบ้านหมู่ 7',
-        'info'
-      );
-      return nextRole;
-    });
+    if (currentRole === 'admin') {
+      sessionStorage.removeItem('village_admin_authenticated');
+      setCurrentRole('resident');
+      showToast('ออกจากโหมดผู้ดูแลระบบ (สลับเป็นโหมด: ชาวบ้าน / ลูกบ้านหมู่ 7)', 'info');
+    } else {
+      setIsAdminLoginOpen(true);
+    }
+  };
+
+  const handleAdminLoginSuccess = () => {
+    sessionStorage.setItem('village_admin_authenticated', 'true');
+    setCurrentRole('admin');
+    setIsAdminLoginOpen(false);
+    showToast('เข้าสู่โหมด: ผู้ดูแลระบบ (Admin / ผู้ใหญ่บ้าน) สำเร็จ', 'success');
   };
 
   const handleOpenAiAssistant = (prompt?: string) => {
@@ -549,7 +555,7 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={(tab) => {
           if (tab === 'ai_advisor') {
-            setIsAiModalOpen(true);
+            handleOpenAiAssistant();
           } else {
             setActiveTab(tab);
           }
@@ -660,7 +666,10 @@ export default function App() {
       {/* AI Assistant Modal (Gemini 4 Argon with High Thinking Mode) */}
       <AiAssistantModal
         isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
+        onClose={() => {
+          setIsAiModalOpen(false);
+          setAiInitialPrompt(undefined);
+        }}
         villageContext={villageContext}
         initialPrompt={aiInitialPrompt}
       />
@@ -672,6 +681,13 @@ export default function App() {
           onClose={() => setActiveReceipt(null)}
         />
       )}
+
+      {/* Admin Passcode Modal */}
+      <AdminLoginModal
+        isOpen={isAdminLoginOpen}
+        onClose={() => setIsAdminLoginOpen(false)}
+        onSuccess={handleAdminLoginSuccess}
+      />
     </div>
   );
 }

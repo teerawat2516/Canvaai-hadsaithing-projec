@@ -44,11 +44,19 @@ async function postJsonWithRetry<T>(
 
       if (!res.ok) {
         const errData = isJson ? await res.json().catch(() => ({})) : {};
-        const msg =
-          (errData as { error?: string }).error ||
-          (res.status >= 500
-            ? `เซิร์ฟเวอร์ขัดข้องชั่วคราว (${res.status})`
-            : `ไม่สามารถเชื่อมต่อบริการ AI (${res.status})`);
+        const serverMsg = (errData as { error?: string }).error;
+        let msg = serverMsg;
+        if (!msg) {
+          if (res.status === 401 || res.status === 403) {
+            msg = `ไม่สามารถยืนยันสิทธิ์การเข้าถึง AI (${res.status}) หากเปิดลิงก์พัฒนาบนมือถือ กรุณาล็อกอินบัญชี Google เดียวกันหรือเปิดผ่านลิงก์แชร์แอป`;
+          } else if (res.status === 404 || res.status === 405) {
+            msg = `ไม่พบบริการ AI บนเซิร์ฟเวอร์ (${res.status}) กรุณากดเผยแพร่/อัปเดตแอปอีกครั้งแล้วรีเฟรชหน้าเว็บ`;
+          } else if (res.status >= 500) {
+            msg = `เซิร์ฟเวอร์ขัดข้องชั่วคราว (${res.status})`;
+          } else {
+            msg = `ไม่สามารถเชื่อมต่อบริการ AI (${res.status})`;
+          }
+        }
 
         if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < retries) {
           await new Promise((r) => setTimeout(r, 700));
@@ -58,7 +66,7 @@ async function postJsonWithRetry<T>(
       }
 
       if (!isJson) {
-        throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');
+        throw new Error('การเชื่อมต่อถูกขัดจังหวะ (ระบบตอบกลับไม่ใช่ข้อมูล JSON) กรุณาเปิดผ่าน Chrome หรือ Safari แล้วลองใหม่');
       }
 
       return (await res.json()) as T;

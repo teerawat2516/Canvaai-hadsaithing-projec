@@ -95,7 +95,7 @@ export const FinanceMonthlyChart: React.FC<FinanceMonthlyChartProps> = ({ transa
   const hasTransactions = transactions.length > 0;
 
   return (
-    <div className="glass-card p-5 md:p-6 rounded-3xl shadow-sm border border-white/80 space-y-4">
+    <div className="glass-card p-5 md:p-6 rounded-3xl shadow-sm border border-white/80 space-y-4 h-full flex flex-col justify-between">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="font-bold text-slate-800 text-sm md:text-base flex items-center gap-2">

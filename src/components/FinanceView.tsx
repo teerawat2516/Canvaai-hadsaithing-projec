@@ -20,6 +20,7 @@ import {
 import { FundTransaction, UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
 import { FinanceMonthlyChart } from './FinanceMonthlyChart';
+import { FinanceExpensePieChart } from './FinanceExpensePieChart';
 
 interface FinanceViewProps {
   transactions: FundTransaction[];
@@ -255,8 +256,26 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         </div>
       </div>
 
-      {/* Monthly Income vs Expense Chart (Recharts) */}
-      <FinanceMonthlyChart transactions={transactions} />
+      {/* Financial Analytics Charts (Recharts) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+        <div className="xl:col-span-7">
+          <FinanceMonthlyChart transactions={transactions} />
+        </div>
+        <div className="xl:col-span-5">
+          <FinanceExpensePieChart
+            transactions={transactions}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              if (cat !== 'all') {
+                setFilterType('expense');
+              } else {
+                setFilterType('all');
+              }
+            }}
+          />
+        </div>
+      </div>
 
       {/* Filter and Search Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row gap-3 items-center justify-between">

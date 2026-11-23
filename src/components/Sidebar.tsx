@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../types/village';
 import { VILLAGE_META } from '../data/initialData';
-import { FirebaseStatusIndicator, FirebaseConnectionStatus } from './FirebaseStatusIndicator';
 
 export type TabKey =
   | 'dashboard'
@@ -40,8 +39,6 @@ interface SidebarProps {
   onToggleRole: () => void;
   pendingRepairsCount: number;
   pendingBookingsCount: number;
-  firebaseStatus: FirebaseConnectionStatus;
-  onRetryFirebase?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,8 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleRole,
   pendingRepairsCount,
   pendingBookingsCount,
-  firebaseStatus,
-  onRetryFirebase,
 }) => {
   const menuItems = [
     {
@@ -246,25 +241,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer Sidebar Info */}
-        <div className="p-3.5 border-t border-slate-200/60 bg-white/50 text-xs text-slate-600 space-y-2.5">
-          {/* Firebase Connection Status Indicator with Green / Red Light */}
-          <FirebaseStatusIndicator
-            status={firebaseStatus}
-            projectName="Canvaai-hadsaithing projec"
-            onRetry={onRetryFirebase}
-          />
-
-          <div className="pt-1">
+        <div className="p-3.5 border-t border-slate-200/60 bg-white/50 text-xs text-slate-600">
+          <div>
             <div className="flex items-center justify-between mb-1">
               <span className="font-semibold text-slate-800">ผู้ใหญ่บ้าน:</span>
               <span className="text-slate-700 font-medium">{VILLAGE_META.headmanName}</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-slate-500 mb-2">
+            <div className="flex items-center gap-1 text-[11px] text-slate-500">
               <Phone className="w-3 h-3 text-emerald-600" />
               <span>{VILLAGE_META.headmanPhone}</span>
-            </div>
-            <div className="text-[10px] text-center text-slate-400 pt-1 border-t border-slate-200/40">
-              Firebase Firestore Sync • Canvaai-hadsaithing
             </div>
           </div>
         </div>

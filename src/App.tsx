@@ -544,7 +544,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Sidebar with Firebase Connection Status Card */}
+      {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => {
@@ -560,8 +560,6 @@ export default function App() {
         onToggleRole={handleToggleRole}
         pendingRepairsCount={pendingRepairsCount}
         pendingBookingsCount={pendingBookingsCount}
-        firebaseStatus={firebaseStatus}
-        onRetryFirebase={checkConnection}
       />
 
       {/* Main Content Area */}

@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
@@ -9,7 +10,11 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const isProd = process.env.NODE_ENV === 'production';
+const distDir = path.resolve(__dirname, 'dist');
+const distIndexPath = path.resolve(distDir, 'index.html');
+const isProd =
+  process.env.NODE_ENV === 'production' ||
+  (process.env.NODE_ENV !== 'development' && fs.existsSync(distIndexPath));
 const PORT = Number(process.env.PORT) || 3000;
 
 const app = express();
@@ -35,9 +40,19 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   next(err);
 });
 
+function resolveGeminiApiKey(): string {
+  const raw =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.API_KEY ||
+    '';
+  return raw.trim().replace(/^["']|["']$/g, '');
+}
+
 // Shared server-side Gemini client
 const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = resolveGeminiApiKey();
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured in environment');
   }
@@ -106,13 +121,19 @@ function mapGeminiError(error: any): { status: number; message: string } {
   if (/GEMINI_API_KEY is not configured/i.test(raw)) {
     return {
       status: 500,
-      message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY กรุณาตรวจสอบใน Settings > Secrets',
+      message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบหลังบ้าน กรุณาตรวจสอบ Settings > Secrets แล้ว Deploy ใหม่อีกครั้ง',
     };
   }
-  if (/403|PERMISSION_DENIED|API_KEY_INVALID|400/i.test(raw)) {
+  if (/403|PERMISSION_DENIED|API_KEY_INVALID|API key not valid/i.test(raw)) {
     return {
       status: 403,
-      message: 'ไม่สามารถยืนยันสิทธิ์ Gemini API ได้ กรุณาตรวจสอบ API Key ใน Settings > Secrets',
+      message: 'ไม่สามารถยืนยันสิทธิ์ Gemini API ได้ กรุณาตรวจสอบ GEMINI_API_KEY ใน Settings > Secrets แล้ว Deploy ใหม่อีกครั้ง',
+    };
+  }
+  if (/404|NOT_FOUND/i.test(raw)) {
+    return {
+      status: 404,
+      message: 'ไม่พบโมเดล AI ที่เรียกใช้งานบนเซิร์ฟเวอร์ กรุณากดอัปเดตและ Deploy แอปใหม่อีกครั้ง',
     };
   }
   if (/429|RESOURCE_EXHAUSTED|quota/i.test(raw)) {
@@ -131,6 +152,12 @@ function mapGeminiError(error: any): { status: number; message: string } {
     return {
       status: 504,
       message: 'การประมวลผล AI ใช้เวลานานกว่าปกติ กรุณาลองส่งคำถามใหม่อีกครั้ง',
+    };
+  }
+  if (/400|INVALID_ARGUMENT/i.test(raw)) {
+    return {
+      status: 400,
+      message: 'รูปแบบคำขอไปยัง AI ไม่ถูกต้อง กรุณาลองพิมพ์คำถามใหม่อีกครั้ง',
     };
   }
   return {
@@ -259,7 +286,7 @@ app.post('/api/gemini/chat', async (req, res) => {
   }
 });
 
-// API 1b: Assistant Chat (SSE Streaming for fast, timeout-resilient mobile & desktop replies)
+// API 1b: Assistant Chat (SSE Streaming for fast, timeout-resilient mobile & deployed replies)
 app.post('/api/gemini/chat-stream', async (req, res) => {
   const { prompt, context, history } = req.body || {};
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -271,6 +298,7 @@ app.post('/api/gemini/chat-stream', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
+  res.write(': connected\n\n');
 
   let clientClosed = false;
   res.on('close', () => {
@@ -279,36 +307,32 @@ app.post('/api/gemini/chat-stream', async (req, res) => {
     }
   });
 
+  // Keep Cloud Run / reverse-proxy connections alive while Gemini generates tokens
+  const keepAliveTimer = setInterval(() => {
+    if (!clientClosed && !res.writableFinished) {
+      res.write(': ping\n\n');
+    }
+  }, 4000);
+
   try {
     const ai = getGeminiClient();
     const contextualPrompt = buildContextualPrompt(prompt, context, history);
 
-    const attempts: Array<{ model: string; delayMs: number; config: Record<string, any> }> = [
+    const attempts: Array<{ model: string; timeoutMs: number; delayMs: number; config: Record<string, any> }> = [
+      {
+        model: 'gemini-4-hydrogen',
+        timeoutMs: 12000,
+        delayMs: 400,
+        config: {
+          systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        },
+      },
       {
         model: 'gemini-3.1-flash-lite',
+        timeoutMs: 12000,
         delayMs: 500,
         config: { systemInstruction: VILLAGE_SYSTEM_INSTRUCTION },
-      },
-      {
-        model: 'gemini-4-hydrogen',
-        delayMs: 1000,
-        config: {
-          systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        },
-      },
-      {
-        model: 'gemini-3.1-flash-lite',
-        delayMs: 1000,
-        config: { systemInstruction: VILLAGE_SYSTEM_INSTRUCTION },
-      },
-      {
-        model: 'gemini-4-hydrogen',
-        delayMs: 0,
-        config: {
-          systemInstruction: VILLAGE_SYSTEM_INSTRUCTION,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        },
       },
     ];
 
@@ -318,11 +342,15 @@ app.post('/api/gemini/chat-stream', async (req, res) => {
     for (const attempt of attempts) {
       if (clientClosed) break;
       try {
-        const stream = await ai.models.generateContentStream({
-          model: attempt.model,
-          contents: contextualPrompt,
-          config: attempt.config,
-        });
+        const stream = await withTimeout(
+          ai.models.generateContentStream({
+            model: attempt.model,
+            contents: contextualPrompt,
+            config: attempt.config,
+          }),
+          attempt.timeoutMs,
+          attempt.model
+        );
 
         for await (const chunk of stream) {
           if (clientClosed) break;
@@ -340,11 +368,34 @@ app.post('/api/gemini/chat-stream', async (req, res) => {
         console.warn(`Stream model ${attempt.model} issue:`, err?.message || err);
         lastError = err;
         if (emittedAny) break;
+        const rawErr = String(err?.message || err || '');
+        if (/GEMINI_API_KEY is not configured|PERMISSION_DENIED|API_KEY_INVALID|API key not valid/i.test(rawErr)) {
+          break;
+        }
         if (attempt.delayMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, attempt.delayMs));
         }
       }
     }
+
+    // Server-side non-streaming fallback if SSE stream yielded nothing (unless API key error)
+    if (!emittedAny && !clientClosed) {
+      const rawErr = String(lastError?.message || lastError || '');
+      const isAuthErr = /GEMINI_API_KEY is not configured|PERMISSION_DENIED|API_KEY_INVALID|API key not valid/i.test(rawErr);
+      if (!isAuthErr) {
+        try {
+          const fallbackReply = await generateVillageAI(ai, contextualPrompt);
+          if (fallbackReply && !clientClosed) {
+            emittedAny = true;
+            res.write(`data: ${JSON.stringify({ text: fallbackReply })}\n\n`);
+          }
+        } catch (fallbackErr: any) {
+          lastError = fallbackErr;
+        }
+      }
+    }
+
+    clearInterval(keepAliveTimer);
 
     if (!emittedAny && !clientClosed) {
       const mapped = mapGeminiError(lastError || new Error('ไม่สามารถสร้างคำตอบได้'));
@@ -354,6 +405,7 @@ app.post('/api/gemini/chat-stream', async (req, res) => {
     }
     res.end();
   } catch (error: any) {
+    clearInterval(keepAliveTimer);
     console.error('Error in /api/gemini/chat-stream:', error);
     if (!clientClosed) {
       const mapped = mapGeminiError(error);
@@ -441,7 +493,12 @@ app.post('/api/gemini/analyze-community', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    mode: isProd ? 'production' : 'development',
+    aiConfigured: Boolean(resolveGeminiApiKey()),
+    time: new Date().toISOString(),
+  });
 });
 
 // Admin passcode verification endpoint
@@ -470,6 +527,11 @@ app.post('/api/auth/verify-admin', (req, res) => {
   return res.json({ ok: true });
 });
 
+// Return clean JSON 404 for unknown API paths instead of SPA HTML
+app.all('/api/*', (_req, res) => {
+  res.status(404).json({ error: 'ไม่พบบริการ API ที่ร้องขอ', status: 'error' });
+});
+
 // Setup Vite or static serving
 async function startServer() {
   if (!isProd) {
@@ -480,14 +542,16 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use(express.static(distDir));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(distIndexPath);
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Village Management Server listening on http://0.0.0.0:${PORT}`);
+    console.log(
+      `Village Management Server listening on http://0.0.0.0:${PORT} (${isProd ? 'production' : 'development'})`
+    );
   });
 }
 
